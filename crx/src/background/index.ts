@@ -1,4 +1,5 @@
 import Facebook from "../scripts/facebook";
+import { MessageTypes } from "@src/types/enums";
 import moment from "moment";
 
 class Background {
@@ -95,12 +96,11 @@ class Background {
 	}
 
 	private defineMessages() {
-		chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+		chrome.runtime.onMessage.addListener((message) => {
 			switch (message.type) {
-				case "download":
+				case MessageTypes.DOWNLOAD:
 					{
 						const payload = message.data;
-
 						chrome.downloads.download({
 							url: payload.url,
 							filename: `${payload.filename}_${moment().unix().toString()}.${
@@ -117,13 +117,14 @@ class Background {
 
 	private defineStateChange() {
 		chrome.webNavigation.onHistoryStateUpdated.addListener((change) => {
-			console.log(
-				"🚀 ~ Stories ~ chrome.webNavigation.onHistoryStateUpdated.addListener ~ change:",
-				change
-			);
 			chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-				// Send a message to the content script in the active tab
-				chrome.tabs.sendMessage(tabs[0].id!, { message: {type: "stateChange" , data: change}});
+				if (tabs.length === 0) return;
+
+				if (tabs[0].id) {
+					chrome.tabs.sendMessage(tabs[0].id, {
+						message: { type: MessageTypes.STATE_CHANGE, data: change },
+					});
+				}
 			});
 		});
 	}

@@ -8,63 +8,62 @@ import {
 
 import Connector from "../connector";
 import Helpers from "../helper";
+import { MessageTypes } from "@src/types/enums";
 import _ from "underscore";
 
 class Stories {
 	private styles: Record<string, string>;
+	private wrapper: string;
 	constructor() {
 		console.log("Stories");
 
-		chrome.runtime.onMessage.addListener(
-			({ message }, sender, sendResponse) => {
-				console.log(message);
+		chrome.runtime.onMessage.addListener(({ message }) =>
+         {
+        console.log("message", message)
 
-				if (message.type === "stateChange") {
-                    let observer: MutationObserver
-					if (message.data.url.includes("stories")) {
-						 observer = new MutationObserver((mutations) => {
-
-							mutations.forEach((mutation) => {
-                                if (this.isButtonInjected()) {
-                                    return;
-                                }
-								this.injectDownloadButton();
-							});
+			if (message.type === MessageTypes.STATE_CHANGE) {
+				let observer!: MutationObserver;
+				if (message.data.url.includes("stories")) {
+					observer = new MutationObserver((mutations) => {
+						mutations.forEach(() => {
+							if (this.isButtonInjected()) {
+								return;
+							}
+							this.injectDownloadButton();
 						});
-						observer.observe(document, {
-							subtree: true,
-							childList: true,
-							attributes: true,
-						});
-					}else{
-                        if (observer){
-                            observer.disconnect()
-
-                        }
-                        this.deattachButton();
-                    }
+					});
+					observer.observe(document, {
+						subtree: true,
+						childList: true,
+						attributes: true,
+					});
+				} else {
+					if (observer) {
+						observer.disconnect();
+					}
+					this.deattachButton();
 				}
 			}
-		);
+		});
+		this.wrapper = "social-stalker-fb-story-download";
 
 		this.styles = {
+			wrapper:
+				"display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0px; left: 0px; width: 100%; gap: 5px",
 			btn2: "background-image: linear-gradient(to right, rgb(255, 81, 47) 0%, rgb(221, 36, 118) 51%, rgb(255, 81, 47) 100%); margin: 10px; padding: 10px; text-align: center; text-transform: uppercase; background-size: 200%; color: white; border-radius: 10px; font-weight: bold; flex: 1; cursor: pointer;",
 			btn1: "background-image: linear-gradient(to right, rgb(170, 7, 107) 0%, rgb(97, 4, 95) 51%, rgb(170, 7, 107) 100%); margin: 10px; padding: 10px; text-align: center; text-transform: uppercase; background-size: 200%; color: white; border-radius: 10px; font-weight: bold; flex: 1; cursor: pointer;",
 		};
 	}
-    private isButtonInjected() {
-        return !!document.querySelector("social-stalker-fb-story-download");
-    }
-    private deattachButton() {
-        console.log("DeAttaching ");
-        
-        const button = document.querySelector("social-stalker-fb-story-download");
-        if (button) {
-            button.remove();
-        }
-    }
+	private isButtonInjected() {
+		return !!document.querySelector(this.wrapper);
+	}
+	private deattachButton() {
+		const button = document.querySelector(this.wrapper);
+		if (button) {
+			button.remove();
+		}
+	}
 	injectDownloadButton() {
-		
 		const divsWithDataId = document.querySelectorAll("div[data-id]");
 
 		if (divsWithDataId.length === 0) return;
@@ -72,11 +71,8 @@ class Stories {
 		if (divsWithDataId.length > 0) {
 			for (const div of divsWithDataId) {
 				if (div.getAttribute("data-id")?.startsWith("U")) {
-					const wrapper = document.createElement(
-						"social-stalker-fb-story-download"
-					);
-					wrapper.style.cssText =
-						"display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0px; left: 0px; width: 100%; gap: 5px";
+					const wrapper = document.createElement(this.wrapper);
+					wrapper.style.cssText = this.styles.wrapper;
 
 					const button = document.createElement("button");
 					button.style.cssText = this.styles.btn1;
@@ -138,7 +134,6 @@ class Stories {
 				return story.node.id === storyId;
 			});
 			if (!requestedStory) {
-				console.error("Story not found");
 				return;
 			}
 

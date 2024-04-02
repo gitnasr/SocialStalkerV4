@@ -1,3 +1,4 @@
+import { MessageTypes } from "@src/types/enums";
 import zip from "jszip";
 
 class Helpers {
@@ -36,7 +37,7 @@ class Helpers {
 		ext: "zip" | "png" | "mp4"
 	) => {
 		chrome.runtime.sendMessage({
-			type: "download",
+			type: MessageTypes.DOWNLOAD,
 			data: {
 				url,
 				filename,
