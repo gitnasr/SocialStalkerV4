@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "<name in manifest.json>",
+  "description": "<description in manifest.json>",
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+
+  "icons": {
+    "128": "icon-128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "notifications",
+    "contextMenus",
+    "tabs",
+    "storage",
+    "webRequest",
+    "webNavigation"
+  ],
+  "content_scripts": [
+    {
+      "run_at": "document_start",
+      "matches": [
+        "https://*.facebook.com/*"
+      ],
+      "js": ["src/scripts/facebook/stories.ts"]
+    }
+  ],
+  "options_page": "src/pages/options/index.html",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icon-128.png",
+        "icon-32.png"
+      ],
+      "matches": []
+    }
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/",
+    "*://*.instagram.com/",
+    "*://*.twitter.com/"
+  ]
+}
