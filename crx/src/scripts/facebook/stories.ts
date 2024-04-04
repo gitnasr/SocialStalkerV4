@@ -1,103 +1,156 @@
-import {
-	StoryAttachment,
-	StoryGraphQl,
-	StoryPayload,
-	StoryResult,
-	StoryVariables,
-} from "@src/types";
+import { ButtonTypes, Facebook as F } from "@src/types";
 
 import Connector from "../connector";
+import DEditor from "../dom";
+import DownloadIcon from "@assets/icons/download.svg";
+import DownloadVideo from "@assets/icons/download_video.svg";
 import Helpers from "../helper";
 import { MessageTypes } from "@src/types/enums";
+import ZipIcon from "@assets/icons/zip.svg";
 import _ from "underscore";
 
 class Stories {
-	private styles: Record<string, string>;
 	private wrapper: string;
+	private observer: MutationObserver | undefined;
+	private _currentStoryId = "U";
+
 	constructor() {
-		console.log("Stories");
+		this.wrapper = "social-stalker-fb-story-download";
 
-		chrome.runtime.onMessage.addListener(({ message }) =>
-         {
-        console.log("message", message)
-
+		console.log("Stories Facebook");
+		this.watch();
+		chrome.runtime.onMessage.addListener(({ message }) => {
 			if (message.type === MessageTypes.STATE_CHANGE) {
-				let observer!: MutationObserver;
 				if (message.data.url.includes("stories")) {
-					observer = new MutationObserver((mutations) => {
-						mutations.forEach(() => {
-							if (this.isButtonInjected()) {
-								return;
-							}
-							this.injectDownloadButton();
-						});
-					});
-					observer.observe(document, {
-						subtree: true,
-						childList: true,
-						attributes: true,
-					});
+					this.watch();
 				} else {
-					if (observer) {
-						observer.disconnect();
-					}
-					this.deattachButton();
+					DEditor.detachButton(this.wrapper);
 				}
 			}
 		});
-		this.wrapper = "social-stalker-fb-story-download";
+	}
+	set setCurrentStoryId(id: string) {
+		this._currentStoryId = id;
+	}
+	get currentStoryId() {
+		return this._currentStoryId;
+	}
 
-		this.styles = {
-			wrapper:
-				"display: flex; justify-content: space-between; align-items: center; position: absolute; bottom: 0px; left: 0px; width: 100%; gap: 5px",
-			btn2: "background-image: linear-gradient(to right, rgb(255, 81, 47) 0%, rgb(221, 36, 118) 51%, rgb(255, 81, 47) 100%); margin: 10px; padding: 10px; text-align: center; text-transform: uppercase; background-size: 200%; color: white; border-radius: 10px; font-weight: bold; flex: 1; cursor: pointer;",
-			btn1: "background-image: linear-gradient(to right, rgb(170, 7, 107) 0%, rgb(97, 4, 95) 51%, rgb(170, 7, 107) 100%); margin: 10px; padding: 10px; text-align: center; text-transform: uppercase; background-size: 200%; color: white; border-radius: 10px; font-weight: bold; flex: 1; cursor: pointer;",
-		};
-	}
-	private isButtonInjected() {
-		return !!document.querySelector(this.wrapper);
-	}
-	private deattachButton() {
-		const button = document.querySelector(this.wrapper);
-		if (button) {
-			button.remove();
+	private watch() {
+		const currentURL = window.location.href;
+
+		if (!this.observer) {
+			this.observer = new MutationObserver((mutationsList) => {
+				for (const mutation of mutationsList) {
+					if (!DEditor.isInjected(this.wrapper)) {
+						return this.injectDownloadButton();
+					}
+					// Facebook doesn't trigger CHANGE event on stories page so we need to check for new stories manually
+					if (mutation.type === "childList") {
+						mutation.addedNodes.forEach((node) => {
+							const element = node as HTMLElement;
+							const storyId = this.findDataId(element);
+							if (storyId && storyId != this.currentStoryId) {
+								this.setCurrentStoryId = storyId;
+								DEditor.detachButton(this.wrapper);
+								this.injectDownloadButton();
+							}
+						});
+					}
+				}
+			});
+
+			this.observer.observe(document.body, {
+				subtree: true,
+				childList: true,
+				attributes: false,
+			});
+		}
+		if (!currentURL.includes("stories") && this.observer) {
+			this.observer.disconnect();
+			this.observer = undefined;
 		}
 	}
+
+	private findDataId(div: HTMLElement) {
+		return div.getAttribute("data-id");
+	}
+
 	injectDownloadButton() {
-		const divsWithDataId = document.querySelectorAll("div[data-id]");
+		const dataId = document.querySelectorAll("div[data-id]");
 
-		if (divsWithDataId.length === 0) return;
+		if (dataId.length === 0) return;
 
-		if (divsWithDataId.length > 0) {
-			for (const div of divsWithDataId) {
-				if (div.getAttribute("data-id")?.startsWith("U")) {
-					const wrapper = document.createElement(this.wrapper);
-					wrapper.style.cssText = this.styles.wrapper;
+		if (dataId.length > 0) {
+			for (const div of dataId) {
+				const dataId = div.getAttribute("data-id");
+				if (dataId?.startsWith("U")) {
+					this.setCurrentStoryId = dataId;
+					try {
+						const wrapper = DEditor.createWrapperElement(
+							this.wrapper,
+							"wrapper"
+						);
+						const imageButton = DEditor.createDownloadButton(
+							"download-as-image",
+							DownloadIcon,
+							"image",
+							this.download.bind(this)
+						);
+						wrapper.appendChild(imageButton);
+						const isHasVideo = div.querySelector("video");
+						if (isHasVideo) {
+							const videoButton = DEditor.createDownloadButton(
+								"download-as-video",
+								DownloadVideo,
+								"video",
+								this.download.bind(this)
+							);
+							wrapper.appendChild(videoButton);
+						}
+						const storyCount = this.getStoryCount();
+						if (storyCount > 1) {
+							const downloadAllButton = DEditor.createDownloadButton(
+								"download-all",
+								ZipIcon,
+								"zip",
+								this.download.bind(this)
+							);
+							wrapper.appendChild(downloadAllButton);
+						}
 
-					const button = document.createElement("button");
-					button.style.cssText = this.styles.btn1;
-					button.innerText = "Download Story";
-					button.addEventListener("click", () => this.download(false));
-					wrapper.appendChild(button);
-					if (div.querySelector("video")) {
-						const asImage = document.createElement("button");
-						asImage.style.cssText = this.styles.btn2;
-						asImage.innerText = "Download as Image";
-						asImage.addEventListener("click", () => this.download(true));
-						wrapper.appendChild(asImage);
+						const parent = DEditor.findParentForAppending(
+							1,
+							'div[aria-label="Pause"]'
+						);
+						if (!parent) throw new Error("Parent not found");
+						parent.appendChild(wrapper);
+						break;
+					} catch (error) {
+						console.log(error);
 					}
-					div.appendChild(wrapper);
-					break;
 				}
 			}
 		}
 	}
-	async download(asImage: boolean) {
-		const lastStory = (await Helpers.getFromStorage(
-			"STORY_SEEN"
-		)) as StoryGraphQl;
+	private getStoryCount() {
+		const quires = {
+			q1: document.getElementsByClassName(
+				"x78zum5 xqu0tyb x14vqqas xq8finb xod5an3 x16n37ib x10l6tqk x13vifvy x8pckko"
+			),
+		};
+		return quires.q1.length > 0 ? quires.q1[0].children.length : 1;
+	}
 
-		const storyVariables: StoryVariables = JSON.parse(lastStory.variables[0]);
+	async download(type: ButtonTypes) {
+		const lastStory = await Helpers.getFromStorage<F.StoryRequest>(
+			"STORY_SEEN"
+		);
+		if (!lastStory) {
+			return;
+		}
+
+		const storyVariables: F.StoryVariables = JSON.parse(lastStory.variables[0]);
 		const bucketId = storyVariables.input.bucket_id;
 		const storyId = storyVariables.input.story_id;
 		const currentUser = storyVariables.input.actor_id;
@@ -105,7 +158,7 @@ class Stories {
 		const fbToken = lastStory.fb_dtsg[0];
 		const doc_id = "2913003758722672";
 
-		const Payload: StoryPayload = {
+		const Payload: F.StoryPayload = {
 			fb_dtsg: fbToken,
 			doc_id: doc_id,
 			variables: JSON.stringify({
@@ -126,77 +179,98 @@ class Stories {
 			true
 		);
 		if (response.status === 200) {
-			const storyResponse = response.json;
+			const storyResponse: F.StoryResponse = response.json;
 			const { data } = storyResponse;
 			const stories = data.nodes[0].unified_stories.edges;
-
-			const requestedStory = _.find(stories, (story) => {
-				return story.node.id === storyId;
-			});
-			if (!requestedStory) {
+			let StoryBucket: F.Bucket = stories;
+			if (type !== "zip") {
+				const foundStory = _.find(stories, (story) => {
+					return story.node.id === storyId;
+				});
+				if (foundStory) {
+					StoryBucket = foundStory;
+				}
+			}
+			if (StoryBucket === undefined) {
 				return;
 			}
+			const owner = data.nodes[0].owner;
+			const StoriesToDownload: F.ParsedStory[] = [];
 
-			const story = requestedStory.node;
-			const createdAt = story?.creation_time;
+			if (Array.isArray(StoryBucket)) {
+				for (const story of StoryBucket) {
+					const parsed_story = this.parseStory(story, storyId, bucketId);
 
-			const attachment: StoryAttachment = story.attachments[0].media;
-			const storyOwner = _.omit(data.nodes[0].owner, [
-				"__typename",
-				"shortname",
-			]);
-
-			const storyType = attachment.__typename;
-			const StoryData: StoryResult = {
-				storyId,
-				bucketId,
-				storyType,
-				createdAt,
-				storyOwner,
-				attachment,
+					StoriesToDownload.push(parsed_story);
+				}
+			} else if (typeof StoryBucket === "object") {
+				const parsed_story = this.parseStory(StoryBucket, storyId, bucketId);
+				StoriesToDownload.push(parsed_story);
+			}
+			console.log({
+				StoriesToDownload,
+				owner,
 				currentUser,
-			};
-			if (storyType === "Video") {
-				const videoUrl = attachment.playable_url_quality_hd;
-				const videoAsPhoto = attachment.previewImage?.uri;
-
-				Object.assign(StoryData, { videoUrl, videoAsPhoto });
-			}
-
-			if (storyType === "Photo") {
-				const photoUrl = attachment.image?.uri;
-				Object.assign(StoryData, { photoUrl });
-			}
-
-			console.log("StoryData", StoryData);
-			if (StoryData.storyType === "Photo" && !asImage) {
-				if (StoryData.photoUrl) {
-					Helpers.download(
-						StoryData.photoUrl,
-						StoryData.storyOwner.name,
-						"png"
-					);
-				}
-			}
-
-			if (StoryData.storyType === "Video" && !asImage) {
-				if (StoryData.videoUrl) {
-					Helpers.download(
-						StoryData.videoUrl,
-						StoryData.storyOwner.name,
-						"mp4"
-					);
-				}
-			}
-
-			if (asImage && StoryData.videoAsPhoto) {
-				Helpers.download(
-					StoryData.videoAsPhoto,
-					StoryData.storyOwner.name,
-					"png"
-				);
-			}
+			});
 		}
+	}
+	private parseStory(
+		StoryBucket: F.SingleBucket,
+		storyId: string,
+		bucketId: string
+	): F.ParsedStory {
+		const story = StoryBucket.node;
+		const createdAt = story?.creation_time;
+
+		const attachment: F.StoryAttachment = story.attachments[0].media;
+
+		const storyType = attachment.__typename;
+		const StoryData: F.ParsedStory = {
+			storyId,
+			bucketId,
+			storyType,
+			createdAt,
+			attachment,
+		};
+		if (storyType === "Video") {
+			const videoUrl = attachment.playable_url_quality_hd;
+			const videoAsPhoto = attachment.previewImage?.uri;
+
+			Object.assign(StoryData, { videoUrl, videoAsPhoto });
+		}
+
+		if (storyType === "Photo") {
+			const photoUrl = attachment.image?.uri;
+			Object.assign(StoryData, { photoUrl });
+		}
+		return StoryData;
+		// if (StoryData.storyType === "Photo" && type === "image") {
+		// 	if (StoryData.photoUrl) {
+		// 		return Helpers.download(
+		// 			StoryData.photoUrl,
+		// 			StoryData.storyOwner.name,
+		// 			"png"
+		// 		);
+		// 	}
+		// }
+
+		// if (StoryData.storyType === "Video" && type === "video") {
+		// 	if (StoryData.videoUrl) {
+		// 		return Helpers.download(
+		// 			StoryData.videoUrl,
+		// 			StoryData.storyOwner.name,
+		// 			"mp4"
+		// 		);
+		// 	}
+		// }
+
+		// if (type === "image" && StoryData.storyType === "Video") {
+		// 	Helpers.download(
+		// 		StoryData.videoAsPhoto!,
+		// 		StoryData.storyOwner.name,
+		// 		"png"
+		// 	);
+		// }
 	}
 }
 

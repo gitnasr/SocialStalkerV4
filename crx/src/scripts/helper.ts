@@ -1,11 +1,9 @@
+import { IStorage } from "@src/types";
 import { MessageTypes } from "@src/types/enums";
 import zip from "jszip";
 
 class Helpers {
-	public static async generateZip(
-		links: string[],
-		userId: number
-	): Promise<string> {
+	static async generateZip(links: string[], userId: number): Promise<string> {
 		const zipFile = new zip();
 		let i = 0;
 		for (const link of links) {
@@ -19,13 +17,14 @@ class Helpers {
 		return zipStream;
 	}
 
-	public static async saveBlob(base64: string) {
+	static async saveBlob(base64: string) {
 		return `data:application/zip;base64,${base64}`;
 	}
 
-	static getFromStorage = async (key: string) => {
+	static getFromStorage: IStorage = async (key: string) => {
 		return new Promise((resolve) => {
-			chrome.storage.sync.get([key], (result) => {
+			chrome.storage.local.get([key], (result) => {
+				if (!result) resolve(null);
 				resolve(result[key]);
 			});
 		});
@@ -45,6 +44,21 @@ class Helpers {
 			},
 		});
 	};
+
+	static openTab = (url: string) => {
+		console.log("🚀 ~ Helpers ~ url:", url)
+		chrome.runtime.sendMessage({
+			type: MessageTypes.OPEN_TAB,
+			data: url,
+		});
+	};
+	static sendMessage = <T>(type: string, data: T) => {
+		chrome.runtime.sendMessage({
+			type,
+			data,
+		});
+	}
+	
 }
 
 export default Helpers;

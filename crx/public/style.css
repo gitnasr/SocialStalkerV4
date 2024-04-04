@@ -1,0 +1,16 @@
+.wrapper {
+	display: flex;
+	justify-content: center;
+	flex-direction: row;
+	flex-wrap: wrap;
+	padding: 2px;
+	align-items: center;
+	gap: 5px;
+}
+
+.btn {
+	cursor: pointer;
+}
+.btn:hover {
+	box-shadow: azure;
+}

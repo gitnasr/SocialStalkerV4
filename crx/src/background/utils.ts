@@ -1,3 +1,5 @@
+import { Flat } from "@src/types";
+
 class Utils {
 	static sendNotification(message: string) {
 		chrome.notifications.create({
@@ -8,12 +10,19 @@ class Utils {
 		});
 	}
 	static download = (url: string, filename: string, ext: "zip"| "png" | "mp4") => {
-		console.log("Downloading", url, filename);
 		chrome.downloads.download({
 			url: url,
 			filename: `${filename}.${ext}`,
 		});
 	}
+	static flatten: Flat = (formData) => {
+		const data: Record<string, string> = {};
+		for (const [key, value] of Object.entries(formData)) {
+			data[key] = value[0];
+		}
+		return data;
+	}
+
 }
 
 

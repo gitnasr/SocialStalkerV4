@@ -55,7 +55,8 @@ export default defineConfig({
       manifest: extensionManifest as ManifestV3Export,
       contentScripts: {
         injectCss: true,
-      }
+        
+      },
     }),
     stripDevIcons(isDev)
   ],
@@ -64,5 +65,5 @@ export default defineConfig({
     outDir,
     sourcemap: isDev,
     emptyOutDir: !isDev
-  },
+  }
 });

@@ -11,7 +11,6 @@ class Facebook {
 	private Connection: Connector;
 	private domain: string;
 	private regex: Record<string, RegExp>;
-	private graphDomain: string;
 	private name: string;
 	private userId: number;
 	constructor(url: string) {
@@ -19,7 +18,6 @@ class Facebook {
 		this.username = "";
 		this.name = "Facebook User";
 		this.domain = "https://mbasic.facebook.com";
-		this.graphDomain = "https://graph.facebook.com";
 
 		this.Connection = new Connector();
 		this.regex = {
@@ -33,7 +31,10 @@ class Facebook {
 		let username = this.url.split("/")[3];
 		let userId = 0;
 		if (username.includes("?id=")) {
-			username = username.split("?id=")[1];
+			const u = new URL(this.url);
+			username = u.searchParams.get("id") || "";
+			username = username.split("&")[0]
+		
 		}
 
 		const isUsernameNumeric = /^\d+$/.test(username);
@@ -116,7 +117,7 @@ class Facebook {
 					// Check if user blocked
 					const title = DEditor.getTitle(html);
 					if (title.includes("Content Not Found")) {
-						console.log("User blocked", title, id);
+						console.log("User blocked", id);
 					}
 				}
 			} catch (e) {
