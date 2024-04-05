@@ -14,7 +14,6 @@
 		"activeTab",
 		"downloads",
 		"notifications",
-		"contextMenus",
 		"tabs",
 		"storage",
 		"webRequest",
@@ -32,7 +31,7 @@
 		{
 			"runs_at": "document_start",
 			"matches": ["https://*.facebook.com/*"],
-			"js": ["src/scripts/facebook/stories.ts"],
+			"js": ["src/scripts/facebook/stories.ts","src/scripts/facebook/profile.ts"],
 			"css":["style.css"]
 
 		}
@@ -45,5 +44,5 @@
 			"matches": []
 		}
 	],
-	"host_permissions": ["*://*.facebook.com/", "*://*.instagram.com/"]
+	"host_permissions": ["*://*.facebook.com/*", "*://*.instagram.com/"]
 }

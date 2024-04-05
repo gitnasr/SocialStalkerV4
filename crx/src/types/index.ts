@@ -1,5 +1,5 @@
 export interface Flat {
-    <T>(formData: T): Record<keyof T, string>;
+    <T>(formData: Record<string, string[]>): Record<keyof T, string>;
 }
 
 export interface IStorage {

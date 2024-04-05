@@ -2,14 +2,18 @@ import { IStorage } from "@src/types";
 import { MessageTypes } from "@src/types/enums";
 import zip from "jszip";
 
+interface Files {
+	type: "png" | "mp4";
+	url: string;
+}
 class Helpers {
-	static async generateZip(links: string[], userId: number): Promise<string> {
+	static async generateZip(links: Files[], userId: number): Promise<string> {
 		const zipFile = new zip();
 		let i = 0;
-		for (const link of links) {
-			const response = await fetch(link);
+		for (const file of links) {
+			const response = await fetch(file.url);
 			const data = await response.arrayBuffer();
-			zipFile.file(`${userId}_${i}.png`, data);
+			zipFile.file(`${userId}_${i}.${file.type}`, data);
 			i++;
 		}
 
@@ -46,7 +50,6 @@ class Helpers {
 	};
 
 	static openTab = (url: string) => {
-		console.log("🚀 ~ Helpers ~ url:", url)
 		chrome.runtime.sendMessage({
 			type: MessageTypes.OPEN_TAB,
 			data: url,
@@ -57,8 +60,7 @@ class Helpers {
 			type,
 			data,
 		});
-	}
-	
+	};
 }
 
 export default Helpers;

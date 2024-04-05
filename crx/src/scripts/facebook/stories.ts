@@ -6,8 +6,10 @@ import DownloadIcon from "@assets/icons/download.svg";
 import DownloadVideo from "@assets/icons/download_video.svg";
 import Helpers from "../helper";
 import { MessageTypes } from "@src/types/enums";
+import Utils from "@src/background/utils";
 import ZipIcon from "@assets/icons/zip.svg";
 import _ from "underscore";
+import moment from "moment";
 
 class Stories {
 	private wrapper: string;
@@ -179,7 +181,7 @@ class Stories {
 			true
 		);
 		if (response.status === 200) {
-			const storyResponse: F.StoryResponse = response.json;
+			const storyResponse = response.json as F.StoryResponse;
 			const { data } = storyResponse;
 			const stories = data.nodes[0].unified_stories.edges;
 			let StoryBucket: F.Bucket = stories;
@@ -199,26 +201,65 @@ class Stories {
 
 			if (Array.isArray(StoryBucket)) {
 				for (const story of StoryBucket) {
-					const parsed_story = this.parseStory(story, storyId, bucketId);
+					const parsed_story = this.parseStory(story, bucketId);
 
 					StoriesToDownload.push(parsed_story);
 				}
 			} else if (typeof StoryBucket === "object") {
-				const parsed_story = this.parseStory(StoryBucket, storyId, bucketId);
+				const parsed_story = this.parseStory(StoryBucket, bucketId);
 				StoriesToDownload.push(parsed_story);
 			}
 			console.log({
 				StoriesToDownload,
 				owner,
 				currentUser,
+				storyId,
 			});
+			this.prepareDownload(StoriesToDownload, type);
 		}
 	}
-	private parseStory(
-		StoryBucket: F.SingleBucket,
-		storyId: string,
-		bucketId: string
-	): F.ParsedStory {
+	private async prepareDownload(Stories:F.ParsedStory[], type: ButtonTypes){
+		
+		if (Stories.length === 1){
+			const story = Stories[0];
+			if (story.storyType === "Photo" && type === "image"){
+				if (story.photoUrl){
+					return Helpers.download(story.photoUrl, "story", "png");
+				}
+			}
+			if (story.storyType === "Video" && type === "video"){
+				if (story.videoUrl){
+					return Helpers.download(story.videoUrl, "story", "mp4");
+				}
+			}
+			if (type === "image" && story.storyType === "Video"){
+				Helpers.download(story.videoAsPhoto!, "story", "png");
+			}
+		}else{
+			const links = Stories.map((story) => {
+				if (story.storyType === "Photo"){
+
+					return {
+						url: story.photoUrl,
+						type: "png"
+					}
+				}
+				if (story.storyType === "Video"){
+					return {
+						url: story.videoUrl,
+						type: "mp4"
+					}
+				}
+				return "";
+			}) 
+			const zipURL = await Helpers.generateZip(links, +Stories[0].bucketId);
+			const Base64 = await Helpers.saveBlob(zipURL);
+			const fileName = `${name}_${moment().unix().toString()}`;
+			Helpers.download(Base64, fileName, "zip");
+		}
+		
+	}
+	private parseStory(StoryBucket: F.SingleBucket, bucketId: string ): F.ParsedStory {
 		const story = StoryBucket.node;
 		const createdAt = story?.creation_time;
 
@@ -226,11 +267,10 @@ class Stories {
 
 		const storyType = attachment.__typename;
 		const StoryData: F.ParsedStory = {
-			storyId,
-			bucketId,
 			storyType,
 			createdAt,
 			attachment,
+			bucketId,
 		};
 		if (storyType === "Video") {
 			const videoUrl = attachment.playable_url_quality_hd;

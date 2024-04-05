@@ -72,7 +72,6 @@ export type StoryAttachment =
 	| Attachment<VideoAttachment>
 	| Attachment<PhotoAttachment>;
 export interface ParsedStory {
-	storyId: string;
 	bucketId: string;
 	storyType: "Photo" | "Video" | undefined;
 	createdAt: number;
@@ -147,9 +146,7 @@ export interface StoryResponse {
 	};
 }
 export type Bucket =
-	| {
-			node: StoryNode;
-	  }
+	| { node: StoryNode }
 	| [
 			{
 				node: StoryNode;
@@ -160,3 +157,9 @@ export type Bucket =
 export type SingleBucket = {
 	node: StoryNode;
 };
+interface InfoResponse {
+	name: string;
+	username: string;
+	userId: number;
+}
+export type Info = Promise<InfoResponse>;

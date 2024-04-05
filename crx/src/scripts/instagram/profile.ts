@@ -29,13 +29,10 @@ class Instagram {
 			}
 		});
 	}
-	private injectDiv() {
+	private Boom() {
 		try {
 			// check if injected
 			const wrapper = DEditor.createWrapperElement(this.wrapper, "wrapper");
-
-
-			// if (document.getElementById("view-full-profile-picture")) return;
 
 			const action_buttons = document.querySelectorAll(
 				this.divs.action_buttons
@@ -64,14 +61,12 @@ class Instagram {
 			}
 
 			action_buttons[1].appendChild(wrapper);
-
 		} catch (e) {
 			console.log(e);
 		}
 	}
 	private async downloadAll() {
 		console.log("Download All");
-		
 	}
 	private async FullSize() {
 		const lastVisitedProfileRequest =
@@ -107,17 +102,14 @@ class Instagram {
 		});
 	}
 
-	
-
 	private watch() {
 		if (!this.observer) {
 			this.observer = new MutationObserver((mutations) => {
-			
 				mutations.forEach(() => {
 					if (DEditor.isInjected(this.wrapper)) {
 						return;
 					}
-					this.injectDiv();
+					this.Boom();
 				});
 			});
 			this.observer.observe(document, {

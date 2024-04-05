@@ -1,61 +1,14 @@
 import { Facebook as F, Instagram as I } from "@src/types";
 
-import Facebook from "../scripts/facebook";
+import CORSFacebook from "./Facebook";
 import { MessageTypes } from "@src/types/enums";
-import Utils from "./utils";
 import moment from "moment";
 
 class Background {
 	constructor() {
-		this.defineContextMenu();
-		this.defineCallbacks();
 		this.defineIntercept();
 		this.defineMessages();
 		this.defineStateChange();
-	}
-	private defineContextMenu() {
-		chrome.contextMenus.removeAll();
-		chrome.contextMenus.create({
-			documentUrlPatterns: ["*://*.facebook.com/*"],
-			id: "DownloadAll",
-			title: "Download All",
-			contexts: ["page"],
-		});
-
-		chrome.contextMenus.create({
-			documentUrlPatterns: ["*://*.facebook.com/*"],
-
-			id: "UnlockAll",
-			title: "View Full Size Profile Picture",
-			contexts: ["page"],
-		});
-	}
-	private FullSize = async (uri: string) => {
-		const facebook = new Facebook(uri);
-		const url = await facebook.getProfilePicture();
-		chrome.tabs.create({
-			url: url,
-		});
-	};
-	private getPhotos = async (uri: string) => {
-		const facebook = new Facebook(uri);
-		await facebook.getPhotos();
-	};
-
-	private defineCallbacks() {
-		chrome.contextMenus.onClicked.addListener((info, tab) => {
-			if (tab && tab.url) {
-				switch (info.menuItemId) {
-					case "UnlockAll":
-						this.FullSize(tab.url);
-						break;
-					case "DownloadAll":
-						return this.getPhotos(tab.url);
-					default:
-						break;
-				}
-			}
-		});
 	}
 
 	public setToStorage = async <T>(key: string, value: T) => {
@@ -87,18 +40,22 @@ class Background {
 		request: chrome.webRequest.WebRequestBodyDetails,
 		url: URL
 	) {
-		const requestFormData = request?.requestBody
-			?.formData;
+		const requestFormData = request?.requestBody?.formData as Record<
+			keyof I.StoryGraphQl,
+			string[]
+		>;
 
 		if (url.pathname === "/api/graphql") {
 			if (!requestFormData) return;
-			const data = Utils.flatten<I.StoryGraphQl>(requestFormData as unknown as I.StoryGraphQl);
-	
+			const data = requestFormData;
+
 			const storyType = Object.hasOwn(data, "fb_api_req_friendly_name");
 
 			if (
 				storyType &&
-				(data.fb_api_req_friendly_name === "usePolarisStoriesV3SeenMutation" || data.fb_api_req_friendly_name === "PolarisAPIReelSeenMutation")
+				(data.fb_api_req_friendly_name[0] ===
+					"usePolarisStoriesV3SeenMutation" ||
+					data.fb_api_req_friendly_name[0] === "PolarisAPIReelSeenMutation")
 			) {
 				this.setToStorage(MessageTypes.INSTAGRAM_STORY_SEEN, data);
 			}
@@ -139,34 +96,52 @@ class Background {
 	}
 
 	private defineMessages() {
-		chrome.runtime.onMessage.addListener((message) => {
-			switch (message.type) {
-				case MessageTypes.DOWNLOAD:
-					{
-						const payload = message.data;
-						chrome.downloads.download({
-							url: payload.url,
-							filename: `${payload.filename}_${moment().unix().toString()}.${
-								payload.ext
-							}`,
-						});
+		chrome.runtime.onMessage.addListener(
+			(message, sender, sendResponseBack) => {
+				(async () => {
+					switch (message.type) {
+						case MessageTypes.DOWNLOAD:
+							{
+								const payload = message.data;
+								chrome.downloads.download({
+									url: payload.url,
+									filename: `${payload.filename}_${moment()
+										.unix()
+										.toString()}.${payload.ext}`,
+								});
+							}
+							return;
+						case MessageTypes.OPEN_TAB:
+							{
+								const url = message.data;
+								chrome.tabs.create({ url });
+							}
+							return;
+						case MessageTypes.INSTA_STORY_CACHE:
+							{
+								this.setToStorage(MessageTypes.INSTA_STORY_CACHE, message.data);
+							}
+							return;
+						case MessageTypes.GET_FACEBOOK_PROFILE:
+							{
+								const url = message.data;
+								const info = await CORSFacebook.getBasicInfo(url);
+								sendResponseBack(info);
+							}
+							return;
+						case MessageTypes.GET_FACEBOOK_ALBUMS:
+							{
+								const { userId, name } = message.data;
+								const albums = await CORSFacebook.getPhotos(name, userId);
+							}
+							return;
+						default:
+							break;
 					}
-					return;
-				case MessageTypes.OPEN_TAB:
-					{
-						const url = message.data;
-						chrome.tabs.create({ url });
-					}
-					return;
-				case MessageTypes.INSTA_STORY_CACHE:
-					{
-						this.setToStorage(MessageTypes.INSTA_STORY_CACHE, message.data);
-					}
-					return;
-				default:
-					break;
+				})();
+				return true;
 			}
-		});
+		);
 	}
 
 	private defineStateChange() {
