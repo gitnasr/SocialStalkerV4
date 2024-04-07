@@ -1,12 +1,11 @@
-import { ButtonTypes, Facebook as F } from "@src/types";
+import { ButtonTypes, Facebook as F, File } from "@src/types";
 
 import Connector from "../connector";
 import DEditor from "../dom";
 import DownloadIcon from "@assets/icons/download.svg";
 import DownloadVideo from "@assets/icons/download_video.svg";
-import Helpers from "../helper";
+import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
-import Utils from "@src/background/utils";
 import ZipIcon from "@assets/icons/zip.svg";
 import _ from "underscore";
 import moment from "moment";
@@ -15,13 +14,20 @@ class Stories {
 	private wrapper: string;
 	private observer: MutationObserver | undefined;
 	private _currentStoryId = "U";
-
+	private _owner = "unknown";
+	public get owner() {
+		return this._owner;
+	}
+	public set owner(value) {
+		this._owner = value;
+	}
+	private userId = 0;
 	constructor() {
 		this.wrapper = "social-stalker-fb-story-download";
 
 		console.log("Stories Facebook");
 		this.watch();
-		chrome.runtime.onMessage.addListener(({ message }) => {
+		chrome.runtime.onMessage.addListener((message) => {
 			if (message.type === MessageTypes.STATE_CHANGE) {
 				if (message.data.url.includes("stories")) {
 					this.watch();
@@ -209,6 +215,8 @@ class Stories {
 				const parsed_story = this.parseStory(StoryBucket, bucketId);
 				StoriesToDownload.push(parsed_story);
 			}
+			this.owner = owner.name
+			this.userId = +owner.id;
 			console.log({
 				StoriesToDownload,
 				owner,
@@ -218,48 +226,43 @@ class Stories {
 			this.prepareDownload(StoriesToDownload, type);
 		}
 	}
-	private async prepareDownload(Stories:F.ParsedStory[], type: ButtonTypes){
-		
-		if (Stories.length === 1){
+	private async prepareDownload(Stories: F.ParsedStory[], type: ButtonTypes) {
+		if (Stories.length === 1) {
 			const story = Stories[0];
-			if (story.storyType === "Photo" && type === "image"){
-				if (story.photoUrl){
-					return Helpers.download(story.photoUrl, "story", "png");
+			const StoryName = `${this.owner}_story_${this.currentStoryId}`
+			if (story.storyType === "Photo" && type === "image") {
+				if (story.photoUrl) {
+					return Helpers.openTab(story.photoUrl);
 				}
 			}
-			if (story.storyType === "Video" && type === "video"){
-				if (story.videoUrl){
-					return Helpers.download(story.videoUrl, "story", "mp4");
-				}
+			if (story.storyType === "Video" && type === "video" && story.videoUrl) {
+				return Helpers.download(story.videoUrl, StoryName, "mp4");
 			}
-			if (type === "image" && story.storyType === "Video"){
-				Helpers.download(story.videoAsPhoto!, "story", "png");
+			if (
+				type === "image" &&
+				story.storyType === "Video" &&
+				story.videoAsPhoto
+			) {
+				Helpers.download(story.videoAsPhoto, StoryName, "png");
 			}
-		}else{
-			const links = Stories.map((story) => {
-				if (story.storyType === "Photo"){
-
-					return {
-						url: story.photoUrl,
-						type: "png"
-					}
-				}
-				if (story.storyType === "Video"){
-					return {
-						url: story.videoUrl,
-						type: "mp4"
-					}
-				}
-				return "";
-			}) 
-			const zipURL = await Helpers.generateZip(links, +Stories[0].bucketId);
-			const Base64 = await Helpers.saveBlob(zipURL);
-			const fileName = `${name}_${moment().unix().toString()}`;
-			Helpers.download(Base64, fileName, "zip");
+		} else {
+			
+			const links: File[] = Stories.map((story) => {
+				return {
+					url: story.storyType === "Photo" ? story.photoUrl : story.videoUrl,
+					extension: story.storyType === "Photo" ? "png" : "mp4",
+				};
+			});
+			const zipURL = await Helpers.generateZip(links, this.userId);
+			
+			const fileName = `${this.owner}_stories_${moment().unix()}`
+			Helpers.download(zipURL, fileName, "zip");
 		}
-		
 	}
-	private parseStory(StoryBucket: F.SingleBucket, bucketId: string ): F.ParsedStory {
+	private parseStory(
+		StoryBucket: F.SingleBucket,
+		bucketId: string
+	): F.ParsedStory {
 		const story = StoryBucket.node;
 		const createdAt = story?.creation_time;
 
@@ -273,7 +276,7 @@ class Stories {
 			bucketId,
 		};
 		if (storyType === "Video") {
-			const videoUrl = attachment.playable_url_quality_hd;
+			const videoUrl = attachment.playable_url_quality_hd || attachment.playable_url;
 			const videoAsPhoto = attachment.previewImage?.uri;
 
 			Object.assign(StoryData, { videoUrl, videoAsPhoto });
@@ -284,33 +287,6 @@ class Stories {
 			Object.assign(StoryData, { photoUrl });
 		}
 		return StoryData;
-		// if (StoryData.storyType === "Photo" && type === "image") {
-		// 	if (StoryData.photoUrl) {
-		// 		return Helpers.download(
-		// 			StoryData.photoUrl,
-		// 			StoryData.storyOwner.name,
-		// 			"png"
-		// 		);
-		// 	}
-		// }
-
-		// if (StoryData.storyType === "Video" && type === "video") {
-		// 	if (StoryData.videoUrl) {
-		// 		return Helpers.download(
-		// 			StoryData.videoUrl,
-		// 			StoryData.storyOwner.name,
-		// 			"mp4"
-		// 		);
-		// 	}
-		// }
-
-		// if (type === "image" && StoryData.storyType === "Video") {
-		// 	Helpers.download(
-		// 		StoryData.videoAsPhoto!,
-		// 		StoryData.storyOwner.name,
-		// 		"png"
-		// 	);
-		// }
 	}
 }
 

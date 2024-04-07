@@ -1,7 +1,7 @@
-interface IResponse {
+interface IResponse<T> {
 	status: number;
 	html?: string;
-	json?: unknown;
+	json?: T;
 }
 type ContentType = "application/json" | "application/x-www-form-urlencoded";
 class Connector {
@@ -9,7 +9,7 @@ class Connector {
 		url: string,
 		options: RequestInit,
 		json = false
-	): Promise<IResponse> {
+	) {
 		const response = await fetch(url, options);
 		return {
 			status: response.status,
@@ -18,37 +18,45 @@ class Connector {
 		};
 	}
 
-	public async get(url: string, json = false): Promise<any> {
+	public async get<T>(url: string, json = false, headers={}): Promise<IResponse<T>> {
 		const res = await this.request(
 			url,
 			{
 				method: "GET",
+				headers: headers,
 			},
 			json
 		);
 		if (res.status !== 200) {
 			throw new Error("Failed to fetch data");
 		}
-		return res.html;
+		return {
+			status: res.status,
+			html: res.html,
+			json: res.json,
+		}
 	}
 
-	public async post(
+	public async post<T>(
 		url: string,
 		data: any,
 		contentType: ContentType = "application/json",
-		returnJson = true
-	): Promise<IResponse> {
+		returnJson = true,
+		headers = {}
+	): Promise<IResponse<T>> {
 		return await this.request(
 			url,
 			{
 				method: "POST",
 				headers: {
 					"Content-Type": contentType,
+					...headers,
 				},
 				body:
 					contentType === "application/json"
 						? JSON.stringify(data)
 						: new URLSearchParams(data).toString(),
+
 			},
 			returnJson
 		);

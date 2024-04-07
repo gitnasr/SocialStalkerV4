@@ -1,16 +1,24 @@
-import { ButtonTypes, Instagram as I } from "@src/types";
+import { ButtonTypes, File, Instagram as I } from "@src/types";
 
 import DEditor from "../dom";
 import DownloadIcon from "@assets/icons/download.svg";
 import DownloadVideo from "@assets/icons/download_video.svg";
-import Helpers from "../helper";
+import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
 import ZipIcon from "@assets/icons/zip.svg";
+import moment from "moment";
 
 class Stories {
 	private wrapper: string;
 	private observer: MutationObserver | undefined;
 	private StoryTypes: I.StoryTypes = "reel";
+	private _currentUser = "unknown";
+	public get currentUser(): string {
+		return this._currentUser;
+	}
+	public set currentUser(value: string) {
+		this._currentUser = value;
+	}
 	constructor() {
 		this.wrapper = "social-stalker-insta-download";
 		this.Boom();
@@ -27,23 +35,20 @@ class Stories {
 	private async Boom() {
 		const currentURL = window.location.href;
 
-		// Handle first render of the page, if user is already on stories page
 		if (currentURL.includes("stories")) {
-			this.injectDiv();
+			this.watch();
 		}
 
-		chrome.runtime.onMessage.addListener(({ message }) => {
+		chrome.runtime.onMessage.addListener((message) => {
 			if (message.type === MessageTypes.STATE_CHANGE) {
 				if (message.data.url.includes("stories")) {
-					this.injectDiv();
+					this.watch();
 				}
 			}
 		});
 	}
 
-	
 	private prepareDownloadButton() {
-		
 		const wrapper = DEditor.createWrapperElement(this.wrapper, "wrapper");
 
 		const imageButton = DEditor.createDownloadButton(
@@ -98,16 +103,15 @@ class Stories {
 			: 1;
 	}
 
-	private injectDiv() {
+	private watch() {
 		if (!this.observer) {
 			this.observer = new MutationObserver((mutations) => {
-				for (const _ of mutations) {
+				mutations.forEach(() => {
 					if (!DEditor.isInjected(this.wrapper)) {
 						this.prepareDownloadButton();
-
-						break;
+						return;
 					}
-				}
+				});
 			});
 
 			this.observer.observe(document, {
@@ -117,7 +121,6 @@ class Stories {
 		}
 	}
 	private async download(type: ButtonTypes) {
-		
 		const lastRequestStoryData = await Helpers.getFromStorage<I.StoryGraphQl>(
 			MessageTypes.INSTAGRAM_STORY_SEEN
 		);
@@ -129,9 +132,7 @@ class Stories {
 		const reelId = vars.reelId;
 		const currentId = vars.reelMediaId;
 		const owner = vars.reelMediaOwnerId;
-		const cached = await Helpers.getFromStorage<I.StoryCache>(
-			MessageTypes.INSTA_STORY_CACHE
-		);
+
 		let story: I.ShortStory | I.ShortStory[] = [];
 		let storyId = BigInt(owner);
 		this.setStoryType = "story";
@@ -140,14 +141,24 @@ class Stories {
 			this.setStoryType = "highlight";
 		}
 		if (type === "zip") {
-			story = await this.getStory(storyId);
-			const links = Array.isArray(story)
-				? story.map((item) => (item.isVideo ? item.video! : item.image))
-				: [story.image];
-			const zipStream = await Helpers.generateZip(links, parseInt(owner));
-			const url = await Helpers.saveBlob(zipStream);
-			return Helpers.openTab(url);
+			story = (await this.getStory(storyId)) as I.ShortStory[];
+
+			const links: File[] = story.map((item: I.ShortStory) => ({
+				url: item.isVideo ? item.video : item.image,
+				extension: item.isVideo ? "mp4" : "png",
+			}));
+
+			const zipURL = await Helpers.generateZip(links, this.currentUser);
+
+			const fileName = `${this.currentUser}_${
+				this.getStoryType
+			}_${moment().unix()}.zip`;
+			// TODO: Add Ability to download videos as photo if user asked (from options page user has to select this option)
+			return Helpers.download(zipURL, fileName, "zip");
 		}
+		const cached = await Helpers.getFromStorage<I.StoryCache>(
+			MessageTypes.INSTA_HIGHLIGH_CACHE
+		);
 		if (
 			cached &&
 			this.getStoryType === "highlight" &&
@@ -161,10 +172,10 @@ class Stories {
 			if (type === "image") {
 				Helpers.openTab(story.image);
 			} else {
-				if (!story.isVideo) {
+				if (!story.isVideo || !story.video) {
 					return;
 				}
-				Helpers.download(story.video!, currentId, "mp4");
+				Helpers.download(story.video, currentId, "mp4");
 			}
 		}
 	}
@@ -173,7 +184,6 @@ class Stories {
 		currentId: string | undefined
 	): I.ShortStory | I.ShortStory[] {
 		if (!currentId) {
-			// return all stories
 			const stories = items.map((item: I.Story) => this.parseStory(item));
 			return stories;
 		}
@@ -189,11 +199,15 @@ class Stories {
 		const data = await this.getData(storyId);
 		const items = data.reels_media[0].items;
 		const user = data.reels_media[0].user;
-		Helpers.sendMessage(MessageTypes.INSTA_STORY_CACHE, {
-			items,
-			user,
-			highlightId: storyId.toString(),
-		});
+		if (this.getStoryType === "highlight") {
+			Helpers.sendMessage(MessageTypes.INSTA_HIGHLIGH_CACHE, {
+				items,
+				user,
+				highlightId: storyId.toString(),
+			});
+		}
+		this.currentUser = user.username;
+
 		return this.filterStories(items, currentId);
 	}
 
@@ -227,7 +241,7 @@ class Stories {
 		return {
 			image: data.image_versions2.candidates[0].url,
 			isVideo,
-			video: data.video_versions ? data.video_versions[0]?.url : null,
+			video: data.video_versions ? data.video_versions[0]?.url : undefined,
 			id: data.pk,
 			timeTaken: data.taken_at,
 		};

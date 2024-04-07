@@ -1,14 +1,16 @@
 import DEditor from "../dom";
 import { Facebook as F } from "@src/types";
-import Helpers from "../helper";
+import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
-import UnlockIcon from "@assets/icons/unlock.svg";
-import ZipIcon from "@assets/icons/zip.svg";
 
 class Profile {
 	private _observer: MutationObserver | undefined;
 	private _name = "";
 	private _wrapper = "social-stalker-fb-profile";
+	private _userId = 0;
+	private _url = "";
+	private _username = "";
+
 	public get wrapper(): string {
 		return this._wrapper;
 	}
@@ -21,9 +23,7 @@ class Profile {
 	public set name(value: string) {
 		this._name = value;
 	}
-	private _userId = 0;
-	private _url = "";
-	private _username = "";
+
 	public get username(): string {
 		return this._username;
 	}
@@ -54,8 +54,8 @@ class Profile {
 	constructor() {
 		this.watch();
 
-		chrome.runtime.onMessage.addListener(({ message }) => {
-			if (message.type === "STATE_CHANGE") {
+		chrome.runtime.onMessage.addListener((message) => {
+			if (message.type === MessageTypes.STATE_CHANGE) {
 				this.watch();
 			}
 		});
@@ -65,23 +65,16 @@ class Profile {
 		wrapper: HTMLElement,
 		friendsButton: HTMLElement,
 		text: string,
-		iconUrl: string,
 		clickHandler: () => void
 	) {
 		const buttonClone = friendsButton.cloneNode(true) as HTMLElement;
-		const button = this.createCustomButton(
-			text,
-			iconUrl,
-			buttonClone,
-			clickHandler
-		);
+		const button = this.createCustomButton(text, buttonClone, clickHandler);
 
 		wrapper.appendChild(button);
 	}
 
 	private createCustomButton(
 		text: string,
-		iconUrl: string,
 		buttonClone: HTMLElement,
 		clickHandler: () => void
 	): HTMLElement {
@@ -91,8 +84,7 @@ class Profile {
 		}
 		const imgElement = buttonClone.querySelector("img");
 		if (imgElement) {
-			imgElement.src = chrome.runtime.getURL(iconUrl);
-			imgElement.removeAttribute("class");
+			imgElement.parentElement?.remove();
 		}
 
 		buttonClone.addEventListener("click", clickHandler.bind(this));
@@ -117,15 +109,13 @@ class Profile {
 		this.addCustomButton(
 			wrapper,
 			friendsButton,
-			"View Full Profile Picture",
-			UnlockIcon,
+			"Full Profile Picture",
 			this.FullSize.bind(this)
 		);
 		this.addCustomButton(
 			wrapper,
 			friendsButton,
-			"Download All",
-			ZipIcon,
+			"Download Photos",
 			this.downloadAll.bind(this)
 		);
 
@@ -136,10 +126,18 @@ class Profile {
 		const { userId, name } = info;
 		this.userId = userId;
 		this.name = name;
-		Helpers.sendMessage(MessageTypes.GET_FACEBOOK_ALBUMS, {
-			userId: this.userId,
-			name: this.name,
-		});
+		chrome.runtime.sendMessage(
+			{
+				type: MessageTypes.GET_FACEBOOK_ALBUMS,
+				data: { userId: this.userId },
+			},
+			async (response) => {
+				const PhotosURLs = response;
+
+				const blob = await Helpers.generateZip(PhotosURLs, this.userId);
+				Helpers.download(blob, `${this.name}_${this.userId}`, "zip");
+			}
+		);
 	}
 	private getProfileInfo = async () => {
 		const info = await new Promise<F.Info>((resolve) => {
@@ -159,7 +157,9 @@ class Profile {
 		this.userId = userId;
 
 		const url = `https://graph.facebook.com/${this.userId}/picture?width=4072&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
-		chrome.runtime.sendMessage({ type: MessageTypes.OPEN_TAB, data: url });
+		const response = await fetch(url, { redirect: "follow" });
+
+		chrome.runtime.sendMessage({ type: MessageTypes.OPEN_TAB, data: response.url });
 	}
 	private watch() {
 		const currentURL = window.location.href;

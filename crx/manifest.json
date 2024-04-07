@@ -3,8 +3,7 @@
 	"name": "<name in manifest.json>",
 	"description": "<description in manifest.json>",
 	"background": {
-		"service_worker": "src/background/index.ts",
-		"type": "module"
+		"service_worker": "src/background/index.ts"
 	},
 
 	"icons": {
@@ -24,22 +23,26 @@
 			"matches": ["https://*.instagram.com/*"],
 			"js": [
 				"src/scripts/instagram/profile.ts",
-				"src/scripts/instagram/stories.ts"
+				"src/scripts/instagram/stories.ts",
+				"src/scripts/instagram/posts.ts",
+				"src/scripts/utils.ts"
 			],
-			"css":["style.css"]
+			"css": ["style.css"]
 		},
 		{
 			"runs_at": "document_start",
 			"matches": ["https://*.facebook.com/*"],
-			"js": ["src/scripts/facebook/stories.ts","src/scripts/facebook/profile.ts"],
-			"css":["style.css"]
-
+			"js": [
+				"src/scripts/facebook/stories.ts",
+				"src/scripts/facebook/profile.ts",
+				"src/scripts/utils.ts"
+			],
+			"css": ["style.css"]
 		}
 	],
 	"options_page": "src/pages/options/index.html",
 	"web_accessible_resources": [
 		{
-			
 			"resources": ["icon-128.png", "icon-32.png", "style.css"],
 			"matches": []
 		}

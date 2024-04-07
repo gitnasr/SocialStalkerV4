@@ -6,22 +6,28 @@ export interface StoryCache {
 export interface ShortStory {
 	image: string;
 	isVideo: boolean;
-	video: string | null;
+	video: string | undefined;
 	id: string;
 	timeTaken: number;
 }
 
-interface User {
+ interface User {
 	full_name: string;
-	interop_messaging_user_fbid: number;
 	is_private: boolean;
 	is_verified: boolean;
 	pk: string;
-	pk_id: string;
 	profile_pic_id: string;
 	profile_pic_url: string;
-	strong_id__: string;
+	hd_profile_pic_url_info: {
+		url: string;
+	}
 	username: string;
+	id:string
+}
+export interface SearchResponse {
+	data: {
+		user: User,
+	}
 }
 
 interface Owner {
@@ -110,3 +116,51 @@ export interface StoryGraphQl {
 	doc_id: string | string[];
 }
 export type StoryTypes = "reel" | "story" | "highlight"
+
+export interface PostResponse{
+	items: Post[],
+	num_results: number,
+	more_available: boolean,
+	next_max_id?: string,
+}
+interface CarouselMedia {
+	id: string;
+	image_versions2: {
+		candidates: ImageCandidate[];
+	};
+	video_versions?: VideoVersion[];
+	video_duration?: number;
+	has_audio?: boolean;
+	media_type: MediaTypes;
+}
+export interface Post {
+	taken_at: number,
+	pk: string,
+	id: string,
+	like_count: number,
+	comment_count: number,
+	media_type: MediaTypes,
+	code: string,
+	user: User,
+	carousel_media_count?: number,
+	image_versions2: {
+		candidates: ImageCandidate[]
+	},
+	carousel_media?: CarouselMedia[],
+	video_versions?: VideoVersion[],
+	video_duration?: number,
+	has_audio?: boolean,
+	
+}
+
+export enum MediaTypes {
+	IMAGE = 1,
+	VIDEO = 2,
+	CAROUSEL = 8,
+}
+
+export interface ViewResponse {
+	data: {
+		user: User,
+	}
+}

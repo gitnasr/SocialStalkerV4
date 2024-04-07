@@ -48,7 +48,6 @@ export interface StoryOwner {
 	name: string;
 }
 interface VideoAttachment {
-	__typename: "Video";
 	playable_url_quality_hd: string;
 	previewImage: {
 		uri: string;
@@ -57,23 +56,19 @@ interface VideoAttachment {
 	id: string;
 }
 interface PhotoAttachment {
-	__typename: "Photo";
 	image: {
 		uri: string;
 	};
 	id: string;
 }
 
-type Attachment<T> = {
-	[P in keyof T]?: T[P];
-};
-
 export type StoryAttachment =
-	| Attachment<VideoAttachment>
-	| Attachment<PhotoAttachment>;
+	| (VideoAttachment & { __typename: "Video" })
+	| (PhotoAttachment & { __typename: "Photo" });
+
 export interface ParsedStory {
 	bucketId: string;
-	storyType: "Photo" | "Video" | undefined;
+	storyType: "Photo" | "Video";
 	createdAt: number;
 	attachment: StoryAttachment;
 	videoAsPhoto?: string;
@@ -150,8 +145,7 @@ export type Bucket =
 	| [
 			{
 				node: StoryNode;
-			}
-	  ]
+			} ]
 	| undefined;
 
 export type SingleBucket = {
@@ -162,4 +156,4 @@ interface InfoResponse {
 	username: string;
 	userId: number;
 }
-export type Info = Promise<InfoResponse>;
+export type Info = Promise<InfoResponse | undefined> ;

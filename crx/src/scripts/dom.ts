@@ -1,41 +1,54 @@
-import * as cheerio from 'cheerio';
+import * as cheerio from "cheerio";
 
-import { ButtonTypes } from '@src/types';
+import { ButtonTypes } from "@src/types";
 
 class DEditor {
-
-	
-	static findURLByText(text: string, html:string): string | undefined {
-	
+	static findURLByText(text: string, html: string): string | undefined {
 		const $ = cheerio.load(html);
 		return $(`a:contains('${text}')`).attr('href');
 	}
+	static findURLsByText(text: string, html: string): string[] | undefined {
+		const $ = cheerio.load(html);
+		const urls: string[] = [];
 
-	static findLinkById(id: string, html:string): string | undefined {
-		const $ = cheerio.load(html);
-		return $(`#${id}`).find('a').attr('href');
-		
+		$(`a:contains('${text}')`).each(function () {
+			const url = $(this).attr("href");
+			if (url) {
+				urls.push(url);
+			}
+		});
+
+		return urls;
 	}
-	static findLinkByClass(className: string, html:string)  {
+
+	static findLinkById(id: string, html: string): string | undefined {
 		const $ = cheerio.load(html);
-		return $(`.${className}`).find('a').map((i, el) => {
-			return $(el).attr('href');
-		})
+		return $(`#${id}`).find("a").attr("href");
+	}
+	static findLinkByClass(className: string, html: string) {
+		const $ = cheerio.load(html);
+		return $(`.${className}`)
+			.find("a")
+			.map((i, el) => {
+				return $(el).attr("href");
+			});
 	}
 	static getTitle(html: string): string {
 		const $ = cheerio.load(html);
-		return $('title').text();
+		return $("title").text();
 	}
-	static createWrapperElement(wrapperTag:string, className: string) {
+	static createWrapperElement(wrapperTag: string, className: string) {
 		const wrapper = document.createElement(wrapperTag);
 		wrapper.className = className;
 		return wrapper;
 	}
-	static createDownloadButton(id: string, iconSrc: string,type: ButtonTypes, callback: (type: ButtonTypes) => void) {
-		
+	static createDownloadButton(
+		id: string,
+		iconSrc: string,
+		type: ButtonTypes,
+		callback: (type: ButtonTypes) => void
+	) {
 		const button = document.createElement("img");
-		button.width = 24;
-		button.height = 24;
 		button.id = id;
 		button.className = "btn";
 		button.src = chrome.runtime.getURL(iconSrc);
@@ -50,10 +63,10 @@ class DEditor {
 		return this.getNthParent(element, n);
 	}
 
-	static  isInjected(wrapperTag:string) {
+	static isInjected(wrapperTag: string) {
 		return !!document.querySelector(wrapperTag);
 	}
-	static 	getNthParent(element: Element, n: number) {
+	static getNthParent(element: Element, n: number) {
 		let currentParent: Element = element;
 		for (let i = 0; i < n; i++) {
 			if (!currentParent) {
@@ -64,13 +77,12 @@ class DEditor {
 		return currentParent;
 	}
 
-	static detachButton(wrapperTag:string) {
+	static detachButton(wrapperTag: string) {
 		const button = document.querySelector(wrapperTag);
 		if (button) {
 			button.remove();
 		}
 	}
-
 }
 
 export default DEditor;
