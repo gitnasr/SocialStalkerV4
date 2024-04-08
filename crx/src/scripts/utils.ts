@@ -129,6 +129,7 @@ class Helpers {
 			data,
 		});
 	};
+
 }
 
 export default Helpers;

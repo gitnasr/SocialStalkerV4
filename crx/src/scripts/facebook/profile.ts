@@ -123,6 +123,7 @@ class Profile {
 	}
 	private async downloadAll() {
 		const info = await this.getProfileInfo();
+		if (!info) return;
 		const { userId, name } = info;
 		this.userId = userId;
 		this.name = name;
@@ -153,13 +154,15 @@ class Profile {
 	private async FullSize() {
 		// NOTE: We need to get the profile info from Background Script because mbasic.facebook.com is has CORS issue.
 		const info = await this.getProfileInfo();
+		if (!info) return;
 		const { userId } = info;
 		this.userId = userId;
 
 		const url = `https://graph.facebook.com/${this.userId}/picture?width=4072&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 		const response = await fetch(url, { redirect: "follow" });
 
-		chrome.runtime.sendMessage({ type: MessageTypes.OPEN_TAB, data: response.url });
+		const res = response.url;
+		Helpers.openTab(res);
 	}
 	private watch() {
 		const currentURL = window.location.href;

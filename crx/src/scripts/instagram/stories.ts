@@ -120,63 +120,70 @@ class Stories {
 			});
 		}
 	}
+	
 	private async download(type: ButtonTypes) {
-		const lastRequestStoryData = await Helpers.getFromStorage<I.StoryGraphQl>(
-			MessageTypes.INSTAGRAM_STORY_SEEN
-		);
+		try {
+		
+			const lastRequestStoryData = await Helpers.getFromStorage<I.StoryGraphQl>(
+				MessageTypes.INSTAGRAM_STORY_SEEN
+			);
 
-		if (!lastRequestStoryData) return;
-		const vars = JSON.parse(
-			lastRequestStoryData.variables as string
-		) as I.StoryRequestVariables;
-		const reelId = vars.reelId;
-		const currentId = vars.reelMediaId;
-		const owner = vars.reelMediaOwnerId;
+			if (!lastRequestStoryData) return;
+			const vars = JSON.parse(
+				lastRequestStoryData.variables as string
+			) as I.StoryRequestVariables;
+			const reelId = vars.reelId;
+			const currentId = vars.reelMediaId;
+			const owner = vars.reelMediaOwnerId;
 
-		let story: I.ShortStory | I.ShortStory[] = [];
-		let storyId = BigInt(owner);
-		this.setStoryType = "story";
-		if (reelId.includes("highlight")) {
-			storyId = BigInt(reelId.split(":")[1]);
-			this.setStoryType = "highlight";
-		}
-		if (type === "zip") {
-			story = (await this.getStory(storyId)) as I.ShortStory[];
-
-			const links: File[] = story.map((item: I.ShortStory) => ({
-				url: item.isVideo ? item.video : item.image,
-				extension: item.isVideo ? "mp4" : "png",
-			}));
-
-			const zipURL = await Helpers.generateZip(links, this.currentUser);
-
-			const fileName = `${this.currentUser}_${
-				this.getStoryType
-			}_${moment().unix()}.zip`;
-			// TODO: Add Ability to download videos as photo if user asked (from options page user has to select this option)
-			return Helpers.download(zipURL, fileName, "zip");
-		}
-		const cached = await Helpers.getFromStorage<I.StoryCache>(
-			MessageTypes.INSTA_HIGHLIGH_CACHE
-		);
-		if (
-			cached &&
-			this.getStoryType === "highlight" &&
-			BigInt(cached.highlightId) === storyId
-		) {
-			story = this.filterStories(cached.items, currentId);
-		} else {
-			story = await this.getStory(storyId, currentId);
-		}
-		if (!Array.isArray(story)) {
-			if (type === "image") {
-				Helpers.openTab(story.image);
-			} else {
-				if (!story.isVideo || !story.video) {
-					return;
-				}
-				Helpers.download(story.video, currentId, "mp4");
+			let story: I.ShortStory | I.ShortStory[] = [];
+			let storyId = BigInt(owner);
+			this.setStoryType = "story";
+			if (reelId.includes("highlight")) {
+				storyId = BigInt(reelId.split(":")[1]);
+				this.setStoryType = "highlight";
 			}
+			if (type === "zip") {
+				story = (await this.getStory(storyId)) as I.ShortStory[];
+
+				const links: File[] = story.map((item: I.ShortStory) => ({
+					url: item.isVideo ? item.video : item.image,
+					extension: item.isVideo ? "mp4" : "png",
+				}));
+
+				const zipURL = await Helpers.generateZip(links, this.currentUser);
+
+				const fileName = `${this.currentUser}_${
+					this.getStoryType
+				}_${moment().unix()}.zip`;
+				// TODO: Add Ability to download videos as photo if user asked (from options page user has to select this option)
+				return Helpers.download(zipURL, fileName, "zip");
+			}
+			const cached = await Helpers.getFromStorage<I.StoryCache>(
+				MessageTypes.INSTA_HIGHLIGH_CACHE
+			);
+			if (
+				cached &&
+				this.getStoryType === "highlight" &&
+				BigInt(cached.highlightId) === storyId
+			) {
+				story = this.filterStories(cached.items, currentId);
+			} else {
+				story = await this.getStory(storyId, currentId);
+			}
+			if (!Array.isArray(story)) {
+				if (type === "image") {
+					Helpers.openTab(story.image);
+				} else {
+					if (!story.isVideo || !story.video) {
+						return;
+					}
+					Helpers.download(story.video, currentId, "mp4");
+				}
+			}
+			
+		} catch (error) {
+			console.error("Error while downloading story", error);
 		}
 	}
 	private filterStories(

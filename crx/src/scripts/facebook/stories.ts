@@ -243,7 +243,7 @@ class Stories {
 				story.storyType === "Video" &&
 				story.videoAsPhoto
 			) {
-				Helpers.download(story.videoAsPhoto, StoryName, "png");
+				return Helpers.openTab(story.videoAsPhoto);
 			}
 		} else {
 			
