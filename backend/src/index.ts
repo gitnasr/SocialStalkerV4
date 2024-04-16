@@ -1,16 +1,16 @@
-import {config, handlers, logger} from '@/config';
 import {ApiError, errorConverter, errorHandler} from '@/middlewares';
+import {config, handlers, logger} from '@/config';
 import express, {Express} from 'express';
 
-import routes from '@/routes';
+import ExpressMongoSanitize from 'express-mongo-sanitize';
 import {v2 as cloudinary} from 'cloudinary';
 import compression from 'compression';
 import cors from 'cors';
-import ExpressMongoSanitize from 'express-mongo-sanitize';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import os from 'os';
 import requestIp from 'request-ip';
+import routes from '@/routes';
 
 class App {
 	public app: Express;
@@ -39,11 +39,8 @@ class App {
 		this.IpInfoMiddleware();
 	}
 	private IpInfoMiddleware() {
-		this.app.use((req, res, next) => {
-			const ip = requestIp.getClientIp(req);
-			req.body.ipAddress = ip;
-			next();
-		});
+		this.app.use(requestIp.mw())
+
 	}
 	private initializeErrorHandling() {
 		this.app.use(handlers.successHandler);

@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid';
 
 export const Track = catchAsync(async (req: T.Body<IG.Actor | FB.Actor>, res: Response) => {
 	const jName = `Tracker:${nanoid(12)}`
-	emit.tracker(req.body, jName);
+	emit.tracker({...req.body, ipAddress:req.clientIp}, jName);
 	return res.sendStatus(200);
 });
 

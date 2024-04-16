@@ -48,18 +48,19 @@ export interface TrackerRequest<U, O, P> {
 
 export interface TrackerData<O> {
 	url: string;
-		eventName: Events;
-		payload: any;
-		filesCount: number;
-		timeInMs: number;
-		files: File[];
-		downloadType: 'ARCHIVE' | 'VIDEO_AS_IMAGE' | 'IMAGE' | 'VIDEO';
-		itemId: string | null;
-		user: string;
-		owner: O;
-		browserId: string;
-		ipAddress: string;
+	eventName: Events;
+	payload: any;
+	filesCount: number;
+	timeInMs: number;
+	files: File[];
+	downloadType: 'ARCHIVE' | 'VIDEO_AS_IMAGE' | 'IMAGE' | 'VIDEO';
+	itemId: string | null;
+	user: string;
+	owner: O;
+	browserId: string;
+	ipAddress: string;
 }
 export interface Body<O> extends Request {
-	body: TrackerData<O>
+	clientIp: string;
+	body: TrackerData<O>;
 }
