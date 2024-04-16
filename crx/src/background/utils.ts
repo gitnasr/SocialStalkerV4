@@ -26,6 +26,15 @@ class Utils {
 			}
 		});
 	}
+
+	static getCookieByWebsite = async (url: string, name: string) => {
+		return new Promise((resolve) => {
+			chrome.cookies.get({ url, name }, (cookie) => {
+				if (!cookie) resolve(null);
+				resolve(cookie?.value);
+			});
+		});
+	};
 }
 
 export default Utils;

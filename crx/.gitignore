@@ -384,3 +384,4 @@ $RECYCLE.BIN/
 
 #generated manifest
 public/manifest.json
+backend/.env.prod

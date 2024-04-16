@@ -1,3 +1,5 @@
+import { TrackerRequest } from "./tracker";
+
 export interface StoryCache {
 	highlightId: string;
 	user: User;
@@ -9,9 +11,11 @@ export interface ShortStory {
 	video: string | undefined;
 	id: string;
 	timeTaken: number;
+	width: number;
+	height: number;
 }
 
- interface User {
+export interface User {
 	full_name: string;
 	is_private: boolean;
 	is_verified: boolean;
@@ -20,14 +24,14 @@ export interface ShortStory {
 	profile_pic_url: string;
 	hd_profile_pic_url_info: {
 		url: string;
-	}
+	};
 	username: string;
-	id:string
+	id: string;
 }
 export interface SearchResponse {
 	data: {
-		user: User,
-	}
+		user: User;
+	};
 }
 
 interface Owner {
@@ -49,17 +53,6 @@ interface VideoVersion {
 	height: number;
 }
 
-interface MusicAssetInfo {
-	title: string;
-	display_artist: string;
-	cover_artwork_uri: string;
-}
-
-interface StoryMusicSticker {
-	display_type: string;
-	music_asset_info: MusicAssetInfo;
-}
-
 export interface Story {
 	pk: string;
 	id: string;
@@ -69,17 +62,16 @@ export interface Story {
 	image_versions2: {
 		candidates: ImageCandidate[];
 	};
-	video_versions: VideoVersion[] | undefined;
+	video_versions: VideoVersion[];
 	video_duration: number;
 	has_audio: boolean;
-	story_music_stickers?: StoryMusicSticker[];
 	product_type: string;
 	commerciality_status: string;
 	media_type: number;
 }
 export interface LastProfile {
-	username: string | undefined;
-	userId: number | undefined;
+	username: string;
+	userId: number;
 }
 export interface StoryRequestVariables {
 	reelId: string;
@@ -115,15 +107,15 @@ export interface StoryGraphQl {
 	server_timestamps: boolean | boolean[];
 	doc_id: string | string[];
 }
-export type StoryTypes = "reel" | "story" | "highlight"
+export type StoryTypes = "reel" | "story" | "highlight";
 
-export interface PostResponse{
-	items: Post[],
-	num_results: number,
-	more_available: boolean,
-	next_max_id?: string,
+export interface PostResponse {
+	items: Post[];
+	num_results: number;
+	more_available: boolean;
+	next_max_id?: string;
 }
-interface CarouselMedia {
+export interface CarouselMedia {
 	id: string;
 	image_versions2: {
 		candidates: ImageCandidate[];
@@ -134,23 +126,22 @@ interface CarouselMedia {
 	media_type: MediaTypes;
 }
 export interface Post {
-	taken_at: number,
-	pk: string,
-	id: string,
-	like_count: number,
-	comment_count: number,
-	media_type: MediaTypes,
-	code: string,
-	user: User,
-	carousel_media_count?: number,
+	taken_at: number;
+	pk: string;
+	id: string;
+	like_count: number;
+	comment_count: number;
+	media_type: MediaTypes;
+	code: string;
+	user: User;
+	carousel_media_count?: number;
 	image_versions2: {
-		candidates: ImageCandidate[]
-	},
-	carousel_media?: CarouselMedia[],
-	video_versions?: VideoVersion[],
-	video_duration?: number,
-	has_audio?: boolean,
-	
+		candidates: ImageCandidate[];
+	};
+	carousel_media?: CarouselMedia[];
+	video_versions?: VideoVersion[];
+	video_duration?: number;
+	has_audio?: boolean;
 }
 
 export enum MediaTypes {
@@ -161,6 +152,20 @@ export enum MediaTypes {
 
 export interface ViewResponse {
 	data: {
-		user: User,
-	}
+		user: User;
+	};
+}
+
+export type StoryTrackRequest = TrackerRequest<string, User, StoryResponse>;
+
+export type PPTrackRequest = TrackerRequest<string, User, User>;
+export type PostsTrackRequest = TrackerRequest<string, User, Post[]>;
+export type PostTrackRequest = TrackerRequest<string, User, Post>;
+export interface StoryResponse {
+	reels_media: [
+		{
+			items: Story[];
+			user: User;
+		}
+	];
 }

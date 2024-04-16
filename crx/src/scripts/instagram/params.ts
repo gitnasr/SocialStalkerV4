@@ -54,7 +54,6 @@ class Params {
 	static get BasicHeaders() {
 		return {
 			"x-asbd-id": "46548741",
-
 			"x-ig-app-id": 936619743392459,
 			"User-Agent":
 				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36",

@@ -5,6 +5,7 @@ import DownloadIcon from "@assets/icons/download.svg";
 import DownloadVideo from "@assets/icons/download_video.svg";
 import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
+import Tracker from "../tracker";
 import ZipIcon from "@assets/icons/zip.svg";
 import moment from "moment";
 
@@ -13,6 +14,8 @@ class Stories {
 	private observer: MutationObserver | undefined;
 	private StoryTypes: I.StoryTypes = "reel";
 	private _currentUser = "unknown";
+	private tacker = new Tracker<I.StoryTrackRequest>();
+
 	public get currentUser(): string {
 		return this._currentUser;
 	}
@@ -120,35 +123,65 @@ class Stories {
 			});
 		}
 	}
-	
-	private async download(type: ButtonTypes) {
+	private getUserFromUrl(input: string) {
 		try {
-		
-			const lastRequestStoryData = await Helpers.getFromStorage<I.StoryGraphQl>(
+			const url = new URL(input);
+			const path = url.pathname;
+			const pathParts = path.split("/");
+			return {
+				username: pathParts[2],
+				type: input.includes("highlights") ? "highlight" : "story",
+				id: pathParts[3],
+			};
+		} catch (error) {
+			return null;
+		}
+	}
+	private async download(type: ButtonTypes) {
+		const startedAt = moment();
+
+		try {
+			const firstSeenStory = await Helpers.getFromStorage<I.StoryGraphQl>(
 				MessageTypes.INSTAGRAM_STORY_SEEN
 			);
 
-			if (!lastRequestStoryData) return;
+			if (!firstSeenStory) return;
 			const vars = JSON.parse(
-				lastRequestStoryData.variables as string
+				firstSeenStory.variables as string
 			) as I.StoryRequestVariables;
 			const reelId = vars.reelId;
-			const currentId = vars.reelMediaId;
+			let currentId = vars.reelMediaId;
 			const owner = vars.reelMediaOwnerId;
+
+			const urlData = this.getUserFromUrl(window.location.href);
+			if (!urlData) return;
+			const { type: StoryType, id } = urlData;
+
+			if (StoryType === "story" && id && id !== currentId) {
+				currentId = id;
+				console.log("User got back to the same story");
+			}
 
 			let story: I.ShortStory | I.ShortStory[] = [];
 			let storyId = BigInt(owner);
+
 			this.setStoryType = "story";
+			this.tacker.data.eventName = "INSTAGRAM_STORY_DOWNLOAD";
+			this.tacker.data.filesCount = 1;
+
 			if (reelId.includes("highlight")) {
 				storyId = BigInt(reelId.split(":")[1]);
 				this.setStoryType = "highlight";
+				this.tacker.data.eventName = "INSTAGRAM_HIGHLIGHT_DOWNLOAD";
 			}
 			if (type === "zip") {
 				story = (await this.getStory(storyId)) as I.ShortStory[];
 
 				const links: File[] = story.map((item: I.ShortStory) => ({
-					url: item.isVideo ? item.video : item.image,
+					url: item.isVideo ? item.video! : item.image,
 					extension: item.isVideo ? "mp4" : "png",
+					id: item.id,
+					fileName: `${this.currentUser}_${item.id}_${moment().unix()}`,
 				}));
 
 				const zipURL = await Helpers.generateZip(links, this.currentUser);
@@ -156,6 +189,10 @@ class Stories {
 				const fileName = `${this.currentUser}_${
 					this.getStoryType
 				}_${moment().unix()}.zip`;
+				this.tacker.data.downloadType = "ARCHIVE";
+				this.tacker.data.itemId = null;
+				this.tacker.data.filesCount = links.length;
+
 				// TODO: Add Ability to download videos as photo if user asked (from options page user has to select this option)
 				return Helpers.download(zipURL, fileName, "zip");
 			}
@@ -172,18 +209,28 @@ class Stories {
 				story = await this.getStory(storyId, currentId);
 			}
 			if (!Array.isArray(story)) {
+				this.tacker.data.itemId = story.id;
+
 				if (type === "image") {
+					this.tacker.data.downloadType = story.isVideo
+						? "VIDEO_AS_IMAGE"
+						: "IMAGE";
 					Helpers.openTab(story.image);
 				} else {
 					if (!story.isVideo || !story.video) {
 						return;
 					}
+
+					this.tacker.data.downloadType = "VIDEO";
 					Helpers.download(story.video, currentId, "mp4");
 				}
 			}
-			
 		} catch (error) {
 			console.error("Error while downloading story", error);
+		} finally {
+			this.tacker.data.timeInMs = moment().diff(startedAt, "milliseconds");
+			this.tacker.data.url = window.location.href;
+			this.tacker.send();
 		}
 	}
 	private filterStories(
@@ -192,7 +239,7 @@ class Stories {
 	): I.ShortStory | I.ShortStory[] {
 		if (!currentId) {
 			const stories = items.map((item: I.Story) => this.parseStory(item));
-			return stories;
+			return stories as I.ShortStory[];
 		}
 		const currentStory = items.find((item: I.Story) => item.pk === currentId);
 		if (!currentStory) throw new Error("Story not found");
@@ -206,6 +253,20 @@ class Stories {
 		const data = await this.getData(storyId);
 		const items = data.reels_media[0].items;
 		const user = data.reels_media[0].user;
+
+		this.tacker.data.user = await Helpers.getCurrentInstagramUserId();
+		this.tacker.data.owner = user;
+		this.tacker.data.payload = data;
+
+		const stories = this.parseStory(items) as I.ShortStory[];
+		this.tacker.data.files = stories.map((item: I.ShortStory) => ({
+			url: item.isVideo ? item.video! : item.image,
+			extension: item.isVideo ? "mp4" : "png",
+			id: item.id,
+			fileName: `${this.currentUser}_${item.id}_${moment().unix()}`,
+			height: item.height,
+			width: item.width,
+		}));
 		if (this.getStoryType === "highlight") {
 			Helpers.sendMessage(MessageTypes.INSTA_HIGHLIGH_CACHE, {
 				items,
@@ -214,11 +275,10 @@ class Stories {
 			});
 		}
 		this.currentUser = user.username;
-
 		return this.filterStories(items, currentId);
 	}
 
-	async getData(storyId: bigint) {
+	async getData(storyId: bigint): Promise<I.StoryResponse> {
 		let URL;
 
 		switch (this.getStoryType) {
@@ -238,20 +298,40 @@ class Stories {
 				"x-ig-app-id": "936619743392459",
 			},
 		});
-		const data = await res.json();
+		const data: I.StoryResponse = await res.json();
 
-		//TODO: Send whole data to Backend
 		return data;
 	}
-	parseStory(data: I.Story): I.ShortStory {
-		const isVideo = data.media_type === 2;
-		return {
-			image: data.image_versions2.candidates[0].url,
-			isVideo,
-			video: data.video_versions ? data.video_versions[0]?.url : undefined,
-			id: data.pk,
-			timeTaken: data.taken_at,
-		};
+	parseStory(data: I.Story | I.Story[]): I.ShortStory | I.ShortStory[] {
+		if (Array.isArray(data)) {
+			const stories: I.ShortStory[] = [];
+			for (const item of data) {
+				const isVideo = item.media_type === 2;
+				stories.push({
+					image: item.image_versions2.candidates[0].url,
+					isVideo,
+					video: item.video_versions ? item.video_versions[0]?.url : undefined,
+					id: item.pk,
+					timeTaken: item.taken_at,
+					width: isVideo
+						? item.video_versions[0].width
+						: item.image_versions2.candidates[0].width,
+					height: item.image_versions2.candidates[0].height,
+				});
+			}
+			return stories;
+		} else {
+			const isVideo = data.media_type === 2;
+			return {
+				image: data.image_versions2.candidates[0].url,
+				isVideo,
+				video: data.video_versions ? data.video_versions[0]?.url : undefined,
+				id: data.pk,
+				timeTaken: data.taken_at,
+				width: data.image_versions2.candidates[0].width,
+				height: data.image_versions2.candidates[0].height,
+			};
+		}
 	}
 }
 

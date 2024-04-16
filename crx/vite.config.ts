@@ -1,5 +1,4 @@
 import { ManifestV3Export, crx } from "@crxjs/vite-plugin";
-import path, { resolve } from "path";
 
 import { defineConfig } from "vite";
 import devManifest from "./manifest.dev.json";
@@ -7,9 +6,9 @@ import fs from "fs";
 import manifest from "./manifest.json";
 import pkg from "./package.json";
 import react from "@vitejs/plugin-react-swc";
+import { resolve } from "path";
 
 const root = resolve(__dirname, "src");
-const pagesDir = resolve(root, "pages");
 const assetsDir = resolve(root, "assets");
 const outDir = resolve(__dirname, "dist");
 const publicDir = resolve(__dirname, "public");
@@ -49,7 +48,6 @@ export default defineConfig({
 		alias: {
 			"@src": root,
 			"@assets": assetsDir,
-			"@pages": pagesDir,
 			"@types": typesDir,
 		},
 	},

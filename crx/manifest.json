@@ -1,13 +1,16 @@
 {
 	"manifest_version": 3,
-	"name": "<name in manifest.json>",
-	"description": "<description in manifest.json>",
+	"name": "SocialStalker: Social Media Downloader",
+	"description": "Chrome Extension That allows you to unlock social media profile pictures, downloading stories and a lot more.",
 	"background": {
 		"service_worker": "src/background/index.ts"
 	},
 
 	"icons": {
-		"128": "icon-128.png"
+		"16": "icon16.png",
+		"32": "icon32.png",
+		"48": "icon48.png",
+		"128": "icon128.png"
 	},
 	"permissions": [
 		"activeTab",
@@ -16,7 +19,8 @@
 		"tabs",
 		"storage",
 		"webRequest",
-		"webNavigation"
+		"webNavigation",
+		"cookies"
 	],
 	"content_scripts": [
 		{
@@ -40,10 +44,9 @@
 			"css": ["style.css"]
 		}
 	],
-	"options_page": "src/pages/options/index.html",
 	"web_accessible_resources": [
 		{
-			"resources": ["icon-128.png", "icon-32.png", "style.css"],
+			"resources": ["icon128.png", "icon32.png", "style.css"],
 			"matches": []
 		}
 	],

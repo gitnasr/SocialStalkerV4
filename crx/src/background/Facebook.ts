@@ -51,7 +51,7 @@ export default class CORSFacebook {
 		const res = await this.connector.get<string>(url);
 		if (!res || !res.html) return;
 		const partialSeeAllURL = DEditor.findURLsByText("See all", res.html);
-	
+
 		if (partialSeeAllURL && partialSeeAllURL.length > 0) {
 			return partialSeeAllURL.map((url) => `https://mbasic.facebook.com${url}`);
 		}
@@ -109,13 +109,15 @@ export default class CORSFacebook {
 				});
 
 				const url = `https://mbasic.facebook.com/photo/view_full_size/?fbid=${id}`;
-				const {html} = await this.connector.get<string>(url);
+				const { html } = await this.connector.get<string>(url);
 				if (!html) return;
 				const photoURL = DEditor.findURLByText("here", html);
 				if (photoURL) {
 					photoURLs.push({
 						extension: "png",
 						url: photoURL,
+						id,
+						fileName: `fb_${id}`,
 					});
 				} else {
 					// Check if user blocked
@@ -124,17 +126,21 @@ export default class CORSFacebook {
 						title.includes("Content Not Found") ||
 						title.includes("Blocked")
 					) {
-						const url = `https://graph.facebook.com/${id}/picture?width=4072&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+						const url = `https://graph.facebook.com/${id}/picture?width=4080&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 						const response = await fetch(url, { redirect: "follow" });
 						const res = response.url;
 						photoURLs.push({
 							extension: "png",
-							url: res,
+							url: !res.includes(".gif") ? url : "",
+							fileName: `fb_${id}`,
+							id,
 						});
 					} else {
 						photoURLs.push({
 							extension: "png",
 							url: "",
+							fileName: "",
+							id,
 						});
 					}
 				}

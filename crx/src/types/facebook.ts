@@ -1,3 +1,6 @@
+import { File } from ".";
+import { TrackerRequest } from "./tracker";
+
 export type StoryVariables = {
 	input: {
 		bucket_id: string;
@@ -46,6 +49,10 @@ export interface StoryOwner {
 	id: string;
 	is_viewer_friend: boolean;
 	name: string;
+	profile_picture: {
+		uri: string;
+	};
+	url: string;
 }
 interface VideoAttachment {
 	playable_url_quality_hd: string;
@@ -54,10 +61,14 @@ interface VideoAttachment {
 	};
 	playable_url: string;
 	id: string;
+	original_height: number;
+	original_width: number;
 }
 interface PhotoAttachment {
 	image: {
 		uri: string;
+		width: number;
+		height: number;
 	};
 	id: string;
 }
@@ -72,8 +83,9 @@ export interface ParsedStory {
 	createdAt: number;
 	attachment: StoryAttachment;
 	videoAsPhoto?: string;
-	videoUrl?: string;
-	photoUrl?: string;
+	videoUrl: string;
+	photoUrl: string;
+	id: string;
 }
 
 export interface StoryNode {
@@ -128,6 +140,8 @@ export interface StoryResponse {
 	data: {
 		nodes: [
 			{
+				id: string;
+				story_bucket_type: "HIGHLIGHTED_STORY" | "STORY";
 				unified_stories: {
 					edges: [
 						{
@@ -135,7 +149,7 @@ export interface StoryResponse {
 						}
 					];
 				};
-				owner: StoryOwner;
+				story_bucket_owner: StoryOwner;
 			}
 		];
 	};
@@ -145,7 +159,8 @@ export type Bucket =
 	| [
 			{
 				node: StoryNode;
-			} ]
+			}
+	  ]
 	| undefined;
 
 export type SingleBucket = {
@@ -156,4 +171,10 @@ interface InfoResponse {
 	username: string;
 	userId: number;
 }
-export type Info = Promise<InfoResponse | undefined> ;
+export interface ProfileOwner {
+	id: string;
+	name: string;
+}
+export type Info = Promise<InfoResponse | undefined>;
+export type StoryTracker = TrackerRequest<string, StoryOwner, StoryResponse>;
+export type ProfileTracker = TrackerRequest<string, ProfileOwner, File[]>;

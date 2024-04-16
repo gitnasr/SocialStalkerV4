@@ -6,6 +6,7 @@ import DownloadIcon from "@assets/icons/download.svg";
 import DownloadVideo from "@assets/icons/download_video.svg";
 import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
+import Tracker from "../tracker";
 import ZipIcon from "@assets/icons/zip.svg";
 import _ from "underscore";
 import moment from "moment";
@@ -13,6 +14,13 @@ import moment from "moment";
 class Stories {
 	private wrapper: string;
 	private observer: MutationObserver | undefined;
+	private _StoryTracker = new Tracker<F.StoryTracker>();
+	public get StoryTracker() {
+		return this._StoryTracker;
+	}
+	public set StoryTracker(value) {
+		this._StoryTracker = value;
+	}
 	private _currentStoryId = "U";
 	private _owner = "unknown";
 	public get owner() {
@@ -94,49 +102,42 @@ class Stories {
 				const dataId = div.getAttribute("data-id");
 				if (dataId?.startsWith("U")) {
 					this.setCurrentStoryId = dataId;
-					try {
-						const wrapper = DEditor.createWrapperElement(
-							this.wrapper,
-							"wrapper"
-						);
-						const imageButton = DEditor.createDownloadButton(
-							"download-as-image",
-							DownloadIcon,
-							"image",
+					const wrapper = DEditor.createWrapperElement(this.wrapper, "wrapper");
+					const imageButton = DEditor.createDownloadButton(
+						"download-as-image",
+						DownloadIcon,
+						"image",
+						this.download.bind(this)
+					);
+					wrapper.appendChild(imageButton);
+					const isHasVideo = div.querySelector("video");
+					if (isHasVideo) {
+						const videoButton = DEditor.createDownloadButton(
+							"download-as-video",
+							DownloadVideo,
+							"video",
 							this.download.bind(this)
 						);
-						wrapper.appendChild(imageButton);
-						const isHasVideo = div.querySelector("video");
-						if (isHasVideo) {
-							const videoButton = DEditor.createDownloadButton(
-								"download-as-video",
-								DownloadVideo,
-								"video",
-								this.download.bind(this)
-							);
-							wrapper.appendChild(videoButton);
-						}
-						const storyCount = this.getStoryCount();
-						if (storyCount > 1) {
-							const downloadAllButton = DEditor.createDownloadButton(
-								"download-all",
-								ZipIcon,
-								"zip",
-								this.download.bind(this)
-							);
-							wrapper.appendChild(downloadAllButton);
-						}
-
-						const parent = DEditor.findParentForAppending(
-							1,
-							'div[aria-label="Pause"]'
-						);
-						if (!parent) throw new Error("Parent not found");
-						parent.appendChild(wrapper);
-						break;
-					} catch (error) {
-						console.log(error);
+						wrapper.appendChild(videoButton);
 					}
+					const storyCount = this.getStoryCount();
+					if (storyCount > 1) {
+						const downloadAllButton = DEditor.createDownloadButton(
+							"download-all",
+							ZipIcon,
+							"zip",
+							this.download.bind(this)
+						);
+						wrapper.appendChild(downloadAllButton);
+					}
+
+					const parent = DEditor.findParentForAppending(
+						1,
+						'div[aria-label="Pause"]'
+					);
+					if (!parent) throw new Error("Parent not found");
+					parent.appendChild(wrapper);
+					break;
 				}
 			}
 		}
@@ -151,91 +152,142 @@ class Stories {
 	}
 
 	async download(type: ButtonTypes) {
-		const lastStory = await Helpers.getFromStorage<F.StoryRequest>(
-			"STORY_SEEN"
-		);
-		if (!lastStory) {
-			return;
-		}
+		const startedAt = moment();
 
-		const storyVariables: F.StoryVariables = JSON.parse(lastStory.variables[0]);
-		const bucketId = storyVariables.input.bucket_id;
-		const storyId = storyVariables.input.story_id;
-		const currentUser = storyVariables.input.actor_id;
-
-		const fbToken = lastStory.fb_dtsg[0];
-		const doc_id = "2913003758722672";
-
-		const Payload: F.StoryPayload = {
-			fb_dtsg: fbToken,
-			doc_id: doc_id,
-			variables: JSON.stringify({
-				bucketIDs: [bucketId],
-				story_id: storyId,
-				scale: 1,
-				prefetchPhotoUri: false,
-			}),
-			server_timestamps: true,
-		};
-		const connector = new Connector();
-
-		const url = `https://www.facebook.com/api/graphql/`;
-		const response = await connector.post(
-			url,
-			Payload,
-			"application/x-www-form-urlencoded",
-			true
-		);
-		if (response.status === 200) {
-			const storyResponse = response.json as F.StoryResponse;
-			const { data } = storyResponse;
-			const stories = data.nodes[0].unified_stories.edges;
-			let StoryBucket: F.Bucket = stories;
-			if (type !== "zip") {
-				const foundStory = _.find(stories, (story) => {
-					return story.node.id === storyId;
-				});
-				if (foundStory) {
-					StoryBucket = foundStory;
-				}
+		try {
+			const lastStory = await Helpers.getFromStorage<F.StoryRequest>(
+				"STORY_SEEN"
+			);
+			if (!lastStory) {
+				throw new Error("Refresh the page and try again.");
 			}
-			if (StoryBucket === undefined) {
-				return;
-			}
-			const owner = data.nodes[0].owner;
-			const StoriesToDownload: F.ParsedStory[] = [];
 
-			if (Array.isArray(StoryBucket)) {
+			const storyVariables: F.StoryVariables = JSON.parse(
+				lastStory.variables[0]
+			);
+			const bucketId = storyVariables.input.bucket_id;
+			const storyId = storyVariables.input.story_id;
+			const currentUser = storyVariables.input.actor_id;
+
+			const fbToken = lastStory.fb_dtsg[0];
+			const doc_id = "2913003758722672";
+
+			const Payload: F.StoryPayload = {
+				fb_dtsg: fbToken,
+				doc_id: doc_id,
+				variables: JSON.stringify({
+					bucketIDs: [bucketId],
+					story_id: storyId,
+					scale: 1,
+					prefetchPhotoUri: false,
+				}),
+				server_timestamps: true,
+			};
+			const connector = new Connector();
+
+			const url = `https://www.facebook.com/api/graphql/`;
+			const response = await connector.post(
+				url,
+				Payload,
+				"application/x-www-form-urlencoded",
+				true
+			);
+			if (response.status === 200) {
+				const storyResponse = response.json as F.StoryResponse;
+				const { data } = storyResponse;
+				const StoryBucket = data.nodes[0].unified_stories.edges;
+				const ParsedStories: F.ParsedStory[] = [];
 				for (const story of StoryBucket) {
-					const parsed_story = this.parseStory(story, bucketId);
+					const parsed_story: F.ParsedStory = this.parseStory(story, bucketId);
 
-					StoriesToDownload.push(parsed_story);
+					ParsedStories.push(parsed_story);
 				}
-			} else if (typeof StoryBucket === "object") {
-				const parsed_story = this.parseStory(StoryBucket, bucketId);
-				StoriesToDownload.push(parsed_story);
+				const owner = data.nodes[0].story_bucket_owner;
+				const eventName =
+					data.nodes[0].story_bucket_type === "HIGHLIGHTED_STORY"
+						? "FACEBOOK_HIGHLIGHTS_DOWNLOAD"
+						: "FACEBOOK_STORY_DOWNLOAD";
+				this.owner = owner.name;
+				this.userId = +owner.id;
+				const StoriesLinks: File[] = ParsedStories.map((story) => {
+					const isImage = story.attachment.__typename === "Photo";
+					return {
+						url: isImage ? story.photoUrl : story.videoUrl,
+						extension: isImage ? "png" : "mp4",
+						id: story.attachment.id,
+						fileName: `${this.owner}_story_${story.attachment.id}`,
+						height:
+							story.attachment.__typename === "Photo"
+								? story.attachment.image.height
+								: story.attachment.original_height,
+						width:
+							story.attachment.__typename === "Photo"
+								? story.attachment.image.width
+								: story.attachment.original_width,
+					};
+				});
+				this.StoryTracker.data = {
+					...this.StoryTracker.data,
+					owner: owner,
+					user: currentUser,
+					filesCount: StoriesLinks.length,
+					payload: storyResponse,
+					url: window.location.href,
+					files: StoriesLinks,
+					itemId: storyId,
+					eventName,
+				};
+				this.StoryTracker.data.owner = owner;
+				if (type !== "zip") {
+					const story = _.find(ParsedStories, (story) => story.id === storyId);
+					if (!story) {
+						throw new Error("Story not found");
+					}
+					return this.prepareDownload([story], type);
+				}
+
+				const zipURL = await Helpers.generateZip(StoriesLinks, this.userId);
+
+				const fileName = `${this.owner}_stories_${moment().unix()}`;
+				Helpers.download(zipURL, fileName, "zip");
+
+				this.StoryTracker.data.downloadType = "ARCHIVE";
+				this.StoryTracker.data.itemId = null;
 			}
-			this.owner = owner.name
-			this.userId = +owner.id;
-			console.log({
-				StoriesToDownload,
-				owner,
-				currentUser,
-				storyId,
-			});
-			this.prepareDownload(StoriesToDownload, type);
+		} catch (error) {
+			if (error instanceof Error) {
+				Helpers.sendMessage(MessageTypes.NOTIFICATION, {
+					type: "error",
+					content: error.message,
+				});
+				this.StoryTracker.error = {
+					error,
+					message: error.message,
+				};
+			}
+		} finally {
+			const endedAt = moment();
+			const duration = moment
+				.duration(endedAt.diff(startedAt))
+				.asMilliseconds();
+			this.StoryTracker.data.timeInMs = duration;
+			this.StoryTracker.send();
 		}
 	}
 	private async prepareDownload(Stories: F.ParsedStory[], type: ButtonTypes) {
 		if (Stories.length === 1) {
 			const story = Stories[0];
-			const StoryName = `${this.owner}_story_${this.currentStoryId}`
+			this.StoryTracker.data.itemId = story.attachment.id;
+
+			const StoryName = `${this.owner}_story_${story.attachment.id}`;
 			if (story.storyType === "Photo" && type === "image") {
 				if (story.photoUrl) {
+					this.StoryTracker.data.downloadType = "IMAGE";
 					return Helpers.openTab(story.photoUrl);
 				}
 			}
 			if (story.storyType === "Video" && type === "video" && story.videoUrl) {
+				this.StoryTracker.data.downloadType = "VIDEO";
 				return Helpers.download(story.videoUrl, StoryName, "mp4");
 			}
 			if (
@@ -243,20 +295,12 @@ class Stories {
 				story.storyType === "Video" &&
 				story.videoAsPhoto
 			) {
+				this.StoryTracker.data.downloadType = "VIDEO_AS_IMAGE";
 				return Helpers.openTab(story.videoAsPhoto);
 			}
 		} else {
-			
-			const links: File[] = Stories.map((story) => {
-				return {
-					url: story.storyType === "Photo" ? story.photoUrl : story.videoUrl,
-					extension: story.storyType === "Photo" ? "png" : "mp4",
-				};
-			});
-			const zipURL = await Helpers.generateZip(links, this.userId);
-			
-			const fileName = `${this.owner}_stories_${moment().unix()}`
-			Helpers.download(zipURL, fileName, "zip");
+			this.StoryTracker.data.downloadType = "ARCHIVE";
+			this.StoryTracker.data.itemId = null;
 		}
 	}
 	private parseStory(
@@ -274,9 +318,13 @@ class Stories {
 			createdAt,
 			attachment,
 			bucketId,
+			id: story.id,
+			videoUrl: "",
+			photoUrl: "",
 		};
 		if (storyType === "Video") {
-			const videoUrl = attachment.playable_url_quality_hd || attachment.playable_url;
+			const videoUrl =
+				attachment.playable_url_quality_hd || attachment.playable_url;
 			const videoAsPhoto = attachment.previewImage?.uri;
 
 			Object.assign(StoryData, { videoUrl, videoAsPhoto });

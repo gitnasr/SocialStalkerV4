@@ -4,10 +4,12 @@ import FB from "./facebook";
 import { MessageTypes } from "@src/types/enums";
 import Utils from "./utils";
 import moment from "moment";
+import { nanoid } from "nanoid";
 
 export default class Background {
 	private facebook = new FB();
 	constructor() {
+		this.onFirstInstall();
 		this.defineIntercept();
 		this.defineMessages();
 		this.defineStateChange();
@@ -93,8 +95,6 @@ export default class Background {
 		chrome.runtime.onMessage.addListener(
 			(message, sender, sendResponseBack) => {
 				(async () => {
-					console.log("🚀 ~ file: main.ts ~ line 116 ~ message", message);
-
 					switch (message.type) {
 						case MessageTypes.DOWNLOAD:
 							{
@@ -130,9 +130,30 @@ export default class Background {
 							return;
 						case MessageTypes.GET_FACEBOOK_ALBUMS:
 							{
-								const { userId  } = message.data;
+								const { userId } = message.data;
 								const albums = await this.facebook.getPhotos(userId);
 								sendResponseBack(albums);
+							}
+							return;
+						case MessageTypes.GET_COOKIE:
+							{
+								const { url, name } = message.data;
+								const cookie = await Utils.getCookieByWebsite(url, name);
+								sendResponseBack(cookie);
+							}
+							return;
+						case MessageTypes.NOTIFICATION:
+							{
+								const { type, content } = message.data;
+								chrome.notifications.create({
+									type: "basic",
+									iconUrl: chrome.runtime.getURL("icon-128.png"),
+									title:
+										type === "error"
+											? "⚠️ SocialStalker: Error"
+											: "🚀 SocialStalker",
+									message: content,
+								});
 							}
 							return;
 						default:
@@ -147,6 +168,15 @@ export default class Background {
 	private defineStateChange() {
 		chrome.webNavigation.onHistoryStateUpdated.addListener((change) => {
 			Utils.sendToContentScript(MessageTypes.STATE_CHANGE, change);
+		});
+	}
+
+	private onFirstInstall() {
+		chrome.runtime.onInstalled.addListener((details) => {
+			if (details.reason === "install") {
+				const token = nanoid(32);
+				chrome.storage.local.set({ token });
+			}
 		});
 	}
 }

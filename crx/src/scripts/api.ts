@@ -1,8 +1,7 @@
 class Api {
-	private static apiURL =
-		process.env.NODE_ENV === "development"
-			? process.env.VITE_DEV_BACKEND_URL
-			: process.env.VITE_PROD_BACKEND_URL;
+	private static apiURL = import.meta.env.DEV
+		? import.meta.env.VITE_DEV_BACKEND_URL
+		: import.meta.env.VITE_PROD_BACKEND_URL;
 	private static headers = {
 		"Content-Type": "application/json",
 	};
@@ -15,8 +14,8 @@ class Api {
 		return await response.json();
 	}
 
-	static async post<T>(url: string, data: T) {
-		const response = await fetch(`${this.apiURL}${url}`, {
+	static async post<T>(endpoint: string, data: T) {
+		const response = await fetch(`${this.apiURL}/${endpoint}`, {
 			method: "POST",
 			headers: this.headers,
 			body: JSON.stringify(data),

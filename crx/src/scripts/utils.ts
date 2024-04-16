@@ -1,5 +1,6 @@
 import { File, IStorage } from "@src/types";
 
+import Api from "./api";
 import { MessageTypes } from "@src/types/enums";
 import zip from "jszip";
 
@@ -13,7 +14,7 @@ chrome.runtime.onMessage.addListener((message) => {
 	}
 });
 
-class Helpers {
+class Helpers extends Api {
 	static AttachProgressBar = () => {
 		const div = document.createElement("div");
 		div.id = "social-stalker-progress-bar";
@@ -29,7 +30,6 @@ class Helpers {
 		progressBar.style.width = `${percentage}%`;
 		progressBar.innerText = `${percentage}%`;
 		if (percentage === 100) this.detachProgressBar();
-
 	};
 	static detachProgressBar = () => {
 		const div = document.querySelector("#social-stalker-progress-bar");
@@ -63,12 +63,11 @@ class Helpers {
 				const data = await response.arrayBuffer();
 
 				// Add the file to the zip
-				if (links[i].fileName){
+				if (links[i].fileName) {
 					zipFile.file(`${links[i].fileName}.${links[i].extension}`, data);
-				}else{
+				} else {
 					zipFile.file(`${prefix}_${i + 1}.${links[i].extension}`, data);
 				}
-				
 			}
 
 			// Generate the zip file
@@ -84,7 +83,6 @@ class Helpers {
 
 			return url;
 		} catch (error) {
-			// Handle any errors
 			console.error("Error generating zip:", error);
 			throw error;
 		} finally {
@@ -123,13 +121,31 @@ class Helpers {
 			data: url,
 		});
 	};
-	static sendMessage = <T>(type: string, data: T) => {
-		chrome.runtime.sendMessage({
-			type,
-			data,
+	static sendMessage = <T>(type: string, data: T, response = false) => {
+		return new Promise((resolve) => {
+			chrome.runtime.sendMessage(
+				{
+					type,
+					data,
+				},
+				(res) => {
+					if (response) return resolve(res);
+					resolve(true);
+				}
+			);
 		});
 	};
-
+	static async getCurrentInstagramUserId(): Promise<string> {
+		const currentUserId = await Helpers.sendMessage(
+			MessageTypes.GET_COOKIE,
+			{
+				url: "https://instagram.com",
+				name: "ds_user_id",
+			},
+			true
+		);
+		return currentUserId as string;
+	}
 }
 
 export default Helpers;

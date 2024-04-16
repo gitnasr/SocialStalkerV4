@@ -5,22 +5,24 @@ import DEditor from "../dom";
 import Helpers from "../utils";
 import { MessageTypes } from "@src/types/enums";
 import Params from "./params";
+import Tracker from "../tracker";
 import _ from "underscore";
+import moment from "moment";
 
 class Instagram {
 	private connector = new Connector();
-	private _userId: number | undefined;
-	public get userId(): number | undefined {
+	private _userId!: number;
+	public get userId(): number {
 		return this._userId;
 	}
-	public set userId(value: number | undefined) {
+	public set userId(value: number) {
 		this._userId = value;
 	}
-	private _username: string | undefined;
-	public get username(): string | undefined {
+	private _username!: string;
+	public get username(): string {
 		return this._username;
 	}
-	public set username(value: string | undefined) {
+	public set username(value: string) {
 		this._username = value;
 	}
 	private observer: MutationObserver | undefined;
@@ -31,6 +33,10 @@ class Instagram {
 	public set wrapperName(value: string) {
 		this._wrapperName = value;
 	}
+
+	private PPTracker = new Tracker<I.PPTrackRequest>();
+	private PostsTracker = new Tracker<I.PostsTrackRequest>();
+
 	private wrapperElement: HTMLElement | undefined;
 	constructor() {
 		this.watch();
@@ -100,20 +106,44 @@ class Instagram {
 		}
 	}
 	private async downloadAll() {
-		const lastVisitedProfileRequest =
-			await Helpers.getFromStorage<I.LastProfile>(
-				MessageTypes.INSTAGRAM_PROFILE
+		const startedAt = moment();
+		try {
+			const lastVisitedProfileRequest =
+				await Helpers.getFromStorage<I.LastProfile>(
+					MessageTypes.INSTAGRAM_PROFILE
+				);
+
+			if (!lastVisitedProfileRequest)
+				throw new Error("No Profile Found, try to refresh the page");
+			this.username = lastVisitedProfileRequest.username;
+			this.userId = await this.getId();
+			const posts = await this.getPosts();
+			if (!posts) throw new Error("No posts found");
+
+			const Links = this.paresPosts(posts);
+
+			this.PostsTracker.data.filesCount = Links.length;
+
+			const Blob = await Helpers.generateZip(Links, `${this.username}`);
+			Helpers.download(Blob, `${this.username} Posts`, "zip");
+		} catch (error) {
+			if (error instanceof Error) {
+				Helpers.sendMessage(MessageTypes.NOTIFICATION, {
+					type: "error",
+					content: error.message,
+				});
+				this.PostsTracker.error = {
+					error: error,
+					message: error.message,
+				};
+			}
+		} finally {
+			this.PostsTracker.data.timeInMs = moment().diff(
+				startedAt,
+				"milliseconds"
 			);
-
-		if (!lastVisitedProfileRequest) return;
-
-		this.username = lastVisitedProfileRequest.username;
-		this.userId = await this.getId();
-		const posts = await this.getPosts();
-		if (!posts) return;
-		const Links = this.paresPosts(posts);
-		const Blob = await Helpers.generateZip(Links, `${this.username}`);
-		Helpers.download(Blob, `${this.username} Posts`, "zip");
+			this.PostsTracker.send();
+		}
 	}
 	private async FullSize() {
 		const lastVisitedProfileRequest =
@@ -121,28 +151,73 @@ class Instagram {
 				MessageTypes.INSTAGRAM_PROFILE
 			);
 
-		if (!lastVisitedProfileRequest) return;
+		if (!lastVisitedProfileRequest)
+			throw new Error("No Profile Found, try to refresh the page");
+
 		this.username = lastVisitedProfileRequest.username;
 		this.userId = await this.getId();
-		this.view();
-
-		// TODO: Some Tracking !!
+		await this.view();
 	}
 
 	private async view() {
-		const url = "https://www.instagram.com/graphql/query";
+		const startedAt = moment();
 
-		const data = await this.connector.post<I.ViewResponse>(
-			url,
-			Params.SearchQueryParams(this.username!, this.userId!).toString(),
-			"application/x-www-form-urlencoded",
-			true,
-			Params.SearchQueryHeaders
-		);
-		const res = data.json;
-		if (!res) return;
-		const profilePicture = res.data.user.hd_profile_pic_url_info.url;
-		Helpers.openTab(profilePicture);
+		try {
+			const url = "https://www.instagram.com/graphql/query";
+
+			const data = await this.connector.post<I.ViewResponse>(
+				url,
+				Params.SearchQueryParams(this.username, this.userId).toString(),
+				"application/x-www-form-urlencoded",
+				true,
+				Params.SearchQueryHeaders
+			);
+			const res = data.json;
+
+			if (!res) throw new Error("Couldn't get profile picture");
+			const profilePicture = res.data.user.hd_profile_pic_url_info.url;
+			this.PPTracker.data = {
+				...this.PPTracker.data,
+				eventName: "INSTAGRAM_PROFILE_PICTURE_VIEW",
+				downloadType: "IMAGE",
+				filesCount: 1,
+				url: window.location.href,
+				files: [
+					{
+						extension: "png",
+						url: profilePicture,
+						id: `${this.userId}`,
+						fileName: `${this.username}`,
+					},
+				],
+				payload: res.data.user,
+				user: await Helpers.getCurrentInstagramUserId(),
+				owner: res.data.user,
+				itemId: `${this.userId}`,
+			};
+
+			Helpers.openTab(profilePicture);
+		} catch (err) {
+			if (err instanceof Error) {
+				Helpers.sendMessage(MessageTypes.NOTIFICATION, {
+					type: "error",
+					content: err.message,
+				});
+				this.PPTracker.error = {
+					error: err,
+					message: err.message,
+				};
+			}
+		} finally {
+			const endedAt = moment();
+			this.PPTracker.data = {
+				...this.PPTracker.data,
+
+				timeInMs: endedAt.diff(startedAt, "milliseconds"),
+			};
+
+			this.PPTracker.send();
+		}
 	}
 
 	private watch() {
@@ -170,12 +245,12 @@ class Instagram {
 		);
 
 		const res = req.json;
-		if (!res) return;
+		if (!res) throw new Error("Can't get user id");
 		return +res.data.user.id;
 	}
 
 	private async getPosts() {
-		let url = `https://www.instagram.com/api/v1/feed/user/${this.username}/username/?count=33`;
+		let url = `https://www.instagram.com/api/v1/feed/user/${this.username}/username/?count=100`;
 		let isHasNext = true;
 		let posts: I.Post[] = [];
 		while (isHasNext) {
@@ -184,11 +259,26 @@ class Instagram {
 					...Params.BasicHeaders,
 				})
 			).json;
-			if (!res) return;
+			if (!res || res.items.length === 0) throw new Error("No posts found");
+
 			posts = posts.concat(res.items);
 			isHasNext = res.more_available;
-			if (res.next_max_id) url = `${url}&max_id=${res.next_max_id}`;
+			if (res.next_max_id) {
+				const U = new URL(url);
+				U.searchParams.set("max_id", res.next_max_id);
+				url = U.toString();
+			}
 		}
+		this.PostsTracker.data = {
+			...this.PostsTracker.data,
+			downloadType: "ARCHIVE",
+			eventName: "INSTAGRAM_POSTS_ARCHIVE",
+			user: await Helpers.getCurrentInstagramUserId(),
+			url: window.location.href,
+			owner: posts[0].user,
+			payload: posts,
+		};
+
 		return posts;
 	}
 
@@ -202,6 +292,10 @@ class Instagram {
 					Links.push({
 						url: post.image_versions2.candidates[0].url,
 						extension: "png",
+						id: post.pk,
+						width: post.image_versions2.candidates[0].width,
+						height: post.image_versions2.candidates[0].height,
+						fileName: `${this.username}_${post.code}_${index + 1}`,
 					});
 					break;
 				case I.MediaTypes.VIDEO:
@@ -210,13 +304,17 @@ class Instagram {
 							? post.video_versions[0].url
 							: post.image_versions2.candidates[0].url,
 						extension: "mp4",
+						id: post.pk,
+						width: post.video_versions ? post.video_versions[0].width : 0,
+						height: post.video_versions ? post.video_versions[0].height : 0,
+						fileName: `${this.username}_${post.code}_${index + 1}`,
 					});
 					break;
 				case I.MediaTypes.CAROUSEL:
 					{
 						const media = post.carousel_media;
 						if (!media) continue;
-						media.forEach((m,i) => {
+						media.forEach((m, i) => {
 							Links.push({
 								url:
 									m.media_type === I.MediaTypes.IMAGE
@@ -225,13 +323,23 @@ class Instagram {
 										? m.video_versions[0].url
 										: m.image_versions2.candidates[0].url,
 								extension: m.media_type === I.MediaTypes.IMAGE ? "png" : "mp4",
-								fileName: `${this.username}_${post.code}_${i}_${index + 1}`,
+								fileName: `${this.username}_${i}_${index + 1}`,
+								id: m.id,
+								width: m.video_versions
+									? m.video_versions[0].width
+									: m.image_versions2.candidates[0].width,
+								height: m.video_versions
+									? m.video_versions[0].height
+									: m.image_versions2.candidates[0].height,
 							});
 						});
 					}
 					break;
 			}
 		}
+
+		this.PostsTracker.data.files = Links;
+
 		return Links;
 	}
 }
