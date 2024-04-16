@@ -9,7 +9,6 @@ const envVarsSchema = Joi.object()
 		MONGODB_URL: Joi.string().required().description('Mongo DB url'),
 		CLOUDINARY_URL: Joi.string().required().description('Cloudinary URL'),
 		IP: Joi.string().required().description('IP Info Api Key'),
-		JWT_SECRET: Joi.string().required().description('JWT Secret key'),
 		REDIS_URL: Joi.string().required().description('Redis URL'),
 		EXTENSION_SECRET: Joi.string().required().description('Extension Secret Key'),
 		SYNC_SECRET: Joi.string().required().description('Sync Secret Key')
