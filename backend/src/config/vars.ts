@@ -30,7 +30,7 @@ const config = {
 	env: envVars.NODE_ENV,
 	port: envVars.PORT,
 	mongoose: {
-		url: envVars.MONGODB_URL + ('SocialStalker' + envVars.NODE_ENV === 'development' ? ':test' : '')
+		url: envVars.MONGODB_URL + `SocialStalker-${envVars.NODE_ENV}`
 	},
 	jwt: {
 		secret: envVars.JWT_SECRET
