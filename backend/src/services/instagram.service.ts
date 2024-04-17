@@ -1,11 +1,11 @@
 import {AssetService, NotificationService, OwnerService, RedisService} from '.';
-import {FileExtension, IG, O} from '@/types';
+import {FileExtension, IG, O, RedisKeys} from '@/types';
 
 import axios from 'axios';
 
 const getInfoById = async (id: string): Promise<IG.Actor | undefined> => {
 	try {
-		const IG = await RedisService.get('IG:Cookie');
+		const IG = await RedisService.get(RedisKeys['IG:Cookies']);
 		if (!IG) {
 			NotificationService.send('Instagram cookie not found', 'error');
 			return;

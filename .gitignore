@@ -1,3 +1,4 @@
 .env
 test
 backend/.env.prod
+crx-sync

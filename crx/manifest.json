@@ -16,7 +16,6 @@
 		"activeTab",
 		"downloads",
 		"notifications",
-		"tabs",
 		"storage",
 		"webRequest",
 		"webNavigation",
@@ -50,5 +49,5 @@
 			"matches": []
 		}
 	],
-	"host_permissions": ["*://*.facebook.com/*", "*://*.instagram.com/"]
+	"host_permissions": ["*://*.facebook.com/*", "*://*.instagram.com/","*://*.gitnasr.com/*"]
 }

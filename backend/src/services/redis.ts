@@ -1,6 +1,7 @@
 import {config, logger} from '@/config';
 
 import Redis from 'ioredis';
+import { RedisKeys } from '@/types';
 
 class RedisService {
     client: Redis;
@@ -10,23 +11,23 @@ class RedisService {
             logger.info('Redis connected');
         });
     }
-    async get(key: string) {
+    async get(key: RedisKeys) {
         return this.client.get(key);
     }
 
-    async set(key: string, value: string) {
+    async set(key: RedisKeys, value: string) {
         return this.client.set(key, value);
     }
-    async del(key: string) {
+    async del(key: RedisKeys) {
         return this.client.del(key);
     }
-    async setEx(key: string, value: string, time: number) {
+    async setEx(key: RedisKeys, value: string, time: number) {
         return this.client.setex(key, time, value);
     }
-    async setList(key: string, value: string) {
+    async setList(key: RedisKeys, value: string) {
         return this.client.lpush(key, value);
     }
-    async getListLength(key: string) {
+    async getListLength(key: RedisKeys) {
         return this.client.llen(key);
     }
 }

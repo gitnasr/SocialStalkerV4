@@ -42,4 +42,7 @@ enum Events {
 	FACEBOOK_PROFILE_PHOTOS = 'FACEBOOK_PROFILE_PHOTOS',
 	FACEBOOK_PROFILE_PICTURE = "FACEBOOK_PROFILE_PICTURE"
 }
-export {A, AI, DownloadTypes, Events, FB, FileExtension, FileType, IG, O, Status, T, L};
+enum RedisKeys {
+	'IG:Cookies' = 'IG:Cookies',
+}
+export {A, AI, DownloadTypes, Events, FB, FileExtension, FileType, IG, O, Status, T, L,RedisKeys};
