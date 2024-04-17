@@ -2,3 +2,4 @@
 test
 backend/.env.prod
 crx-sync
+crx/yarn.lock
