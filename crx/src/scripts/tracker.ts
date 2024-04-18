@@ -36,7 +36,8 @@ class Tracker<T extends TrackerRequest<unknown, unknown, unknown>> {
 				error: this.error,
 				data: this.encryptPayload,
 			});
-			return (this.error = undefined);
+			this.error = undefined;
+			return;
 		}
 		await Helpers.post("track", { data: this.encryptPayload });
 	}

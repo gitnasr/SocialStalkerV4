@@ -14,7 +14,6 @@ export const Track = catchAsync(async (req: T.Body<IG.Actor | FB.Actor>, res: Re
 
 export const Log = catchAsync(async (req: Request, res: Response) => {
 	const {data, error} = req.body;
-	console.log("🚀 ~ Log ~ data, error:", data, error)
 	await LogsService.Create({data, error});
 	return res.sendStatus(200);
 });

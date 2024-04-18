@@ -27,6 +27,6 @@ export const TrackerSchema = Joi.object({
 			width : Joi.number().optional()
 		})
 	),
-	itemId: Joi.string().required().allow(null),
+	itemId: Joi.string().optional().allow(null),
 	browserId: Joi.string().required()
 });
