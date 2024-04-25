@@ -27,7 +27,8 @@ const OwnerSchema: Schema = new Schema<O.IDocument, O.IModel>(
 		},
 		fullName: {
 			type: String,
-			required: true
+			required: true,
+			default:"N/A"
 		},
 		userId: {
 			type: String,
