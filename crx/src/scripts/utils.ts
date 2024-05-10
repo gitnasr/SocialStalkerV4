@@ -144,7 +144,8 @@ class Helpers extends Api {
 			},
 			true
 		);
-		return currentUserId as string;
+		if (typeof currentUserId === "string") return currentUserId;
+		throw new Error("Can't get some important data, try to logout and login again");
 	}
 }
 

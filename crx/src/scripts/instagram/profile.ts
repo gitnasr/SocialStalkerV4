@@ -161,8 +161,9 @@ class Instagram {
 
 	private async view() {
 		const startedAt = moment();
-
 		try {
+		const currentUser = await Helpers.getCurrentInstagramUserId();
+
 			const url = "https://www.instagram.com/graphql/query";
 
 			const data = await this.connector.post<I.ViewResponse>(
@@ -191,7 +192,7 @@ class Instagram {
 					},
 				],
 				payload: res.data.user,
-				user: await Helpers.getCurrentInstagramUserId(),
+				user: currentUser,
 				owner: res.data.user,
 				itemId: `${this.userId}`,
 			};
