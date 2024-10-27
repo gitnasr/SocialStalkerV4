@@ -41,7 +41,7 @@ export default class Background {
 			string[]
 		>;
 
-		if (url.pathname === "/api/graphql") {
+		if (url.pathname === "/graphql/query") {
 			if (!requestFormData) return;
 			const data = requestFormData;
 
@@ -50,7 +50,7 @@ export default class Background {
 			if (
 				storyType &&
 				(data.fb_api_req_friendly_name[0] ===
-					"usePolarisStoriesV3SeenMutation" ||
+					"PolarisStoriesV3SeenMutation" ||
 					data.fb_api_req_friendly_name[0] === "PolarisAPIReelSeenMutation")
 			) {
 				Utils.setToStorage(MessageTypes.INSTAGRAM_STORY_SEEN, data);
