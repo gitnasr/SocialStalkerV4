@@ -1,6 +1,6 @@
 {
 	"name": "social-stalker-extension",
-	"version": "1.0.3",
+	"version": "1.0.5",
 	"description": "Chrome Extension That allows you to unlock profile pictures, downloading stories and a lot more.",
 	"license": "MIT",
 	"scripts": {
