@@ -1,5 +1,5 @@
 export interface IStorage {
-	<T>(key: string): Promise<T | null>;
+    <T>(key: string): Promise<T | undefined>;
 }
 export type ButtonTypes = "zip" | "image" | "video";
 export interface File {

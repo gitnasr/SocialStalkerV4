@@ -1,0 +1,65 @@
+diff --git a/node_modules/@crxjs/vite-plugin/dist/index.mjs b/node_modules/@crxjs/vite-plugin/dist/index.mjs
+index 5e029b7..2128255 100644
+--- a/node_modules/@crxjs/vite-plugin/dist/index.mjs
++++ b/node_modules/@crxjs/vite-plugin/dist/index.mjs
+@@ -1,20 +1,21 @@
+-import { watch } from 'rollup';
+-import { simple } from 'acorn-walk';
+-import { createHash as createHash$1 } from 'crypto';
+-import debug$5 from 'debug';
+-import fg from 'fast-glob';
+-import v8 from 'v8';
+-import { promises, readFileSync, existsSync } from 'fs';
++import { existsSync, promises, readFileSync } from 'fs';
++
+ import MagicString from 'magic-string';
+-import { posix } from 'path';
+-import fsExtra from 'fs-extra';
+-import { performance } from 'perf_hooks';
+ import colors from 'picocolors';
++import { createHash as createHash$1 } from 'crypto';
+ import { createLogger } from 'vite';
+ import { createRequire } from 'module';
+-import { load } from 'cheerio';
+-import jsesc from 'jsesc';
++import debug$5 from 'debug';
++import fg from 'fast-glob';
++import fsExtra from 'fs-extra';
+ import injector from 'connect-injector';
++import jsesc from 'jsesc';
++import { load } from 'cheerio';
++import { performance } from 'perf_hooks';
++import { posix } from 'path';
++import { simple } from 'acorn-walk';
++import v8 from 'v8';
++import { watch } from 'rollup';
+ 
+ const _debug = (id) => debug$5("crx").extend(id);
+ const structuredClone = (obj) => {
+@@ -3230,7 +3231,7 @@ const pluginResources = ({ contentScripts = {} }) => {
+               ...rest
+             })).filter(({ resources }) => resources.length);
+             manifest.web_accessible_resources.push({
+-              use_dynamic_url: true,
++              use_dynamic_url: false,
+               matches: ["<all_urls>"],
+               resources: ["**/*", "*"]
+             });
+@@ -3312,7 +3313,7 @@ const pluginResources = ({ contentScripts = {} }) => {
+                     const resource = {
+                       matches: script.matches,
+                       resources: [...assets, ...imports],
+-                      use_dynamic_url: true
++                      use_dynamic_url: false
+                     };
+                     if (css.size)
+                       if (injectCss) {
+@@ -3513,7 +3514,7 @@ const pluginBackground = () => {
+ const defineManifest = (manifest) => manifest;
+ const defineDynamicResource = ({
+   matches = ["http://*/*", "https://*/*"],
+-  use_dynamic_url = true
++  use_dynamic_url = false
+ }) => ({
+   matches,
+   resources: [dynamicResourcesName],

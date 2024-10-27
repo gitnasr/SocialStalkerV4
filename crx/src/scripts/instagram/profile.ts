@@ -86,6 +86,7 @@ class Instagram {
 			if (action_buttons.length === 0) return;
 
 			const lastChildInActionButtons = _.last(action_buttons) as HTMLElement;
+
 			if (!lastChildInActionButtons) return;
 			this.addCustomButton(
 				lastChildInActionButtons,
@@ -146,23 +147,37 @@ class Instagram {
 		}
 	}
 	private async FullSize() {
-		const lastVisitedProfileRequest =
-			await Helpers.getFromStorage<I.LastProfile>(
-				MessageTypes.INSTAGRAM_PROFILE
-			);
+		try {
+			const lastVisitedProfileRequest = {
+				username: "",
+				userId: 0,
+			};
 
-		if (!lastVisitedProfileRequest)
-			throw new Error("No Profile Found, try to refresh the page");
+			const instagram_profile = Helpers.getURL();
+			const urlAsObject = new URL(instagram_profile);
+			if (urlAsObject.pathname.split("/").length == 0) {
+				throw new Error("Couldn't get username from the page");
+			}
 
-		this.username = lastVisitedProfileRequest.username;
-		this.userId = await this.getId();
-		await this.view();
+			lastVisitedProfileRequest.username = urlAsObject.pathname.split("/")[1];
+
+			this.username = lastVisitedProfileRequest.username;
+			this.userId = await this.getId();
+			await this.view();
+		} catch (error) {
+			console.log(error instanceof Error ? error.message : String(error));
+
+			Helpers.sendMessage(MessageTypes.NOTIFICATION, {
+				type: "error",
+				content: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 
 	private async view() {
 		const startedAt = moment();
 		try {
-		const currentUser = await Helpers.getCurrentInstagramUserId();
+			const currentUser = await Helpers.getCurrentInstagramUserId();
 
 			const url = "https://www.instagram.com/graphql/query";
 

@@ -94,11 +94,16 @@ class Helpers extends Api {
 	static getFromStorage: IStorage = async (key: string) => {
 		return new Promise((resolve) => {
 			chrome.storage.local.get([key], (result) => {
-				if (!result) resolve(null);
-				resolve(result[key]);
+				if (!result || result[key] === undefined) {
+				
+					resolve(undefined);
+				} else {
+					resolve(result[key]);
+				}
 			});
 		});
 	};
+	
 
 	static download = (
 		url: string,
@@ -146,6 +151,10 @@ class Helpers extends Api {
 		);
 		if (typeof currentUserId === "string") return currentUserId;
 		throw new Error("Can't get some important data, try to logout and login again");
+	}
+	static getURL = ():string => {
+		const url = window.location.href;
+		return url;
 	}
 }
 

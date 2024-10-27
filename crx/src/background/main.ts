@@ -147,7 +147,7 @@ export default class Background {
 								const { type, content } = message.data;
 								chrome.notifications.create({
 									type: "basic",
-									iconUrl: chrome.runtime.getURL("icon-128.png"),
+									iconUrl: "https://storage.gitnasr.com/icon128.png",
 									title:
 										type === "error"
 											? "⚠️ SocialStalker: Error"

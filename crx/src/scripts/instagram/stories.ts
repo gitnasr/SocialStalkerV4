@@ -145,7 +145,7 @@ class Stories {
 				MessageTypes.INSTAGRAM_STORY_SEEN
 			);
 
-			if (!firstSeenStory) return;
+			if (!firstSeenStory) throw new Error("Story not found");
 			const vars = JSON.parse(
 				firstSeenStory.variables as string
 			) as I.StoryRequestVariables;
@@ -227,6 +227,10 @@ class Stories {
 			}
 		} catch (error) {
 			console.error("Error while downloading story", error);
+			Helpers.sendMessage(MessageTypes.NOTIFICATION, {
+				type: "error",
+				content: "Error while downloading story",
+			});
 		} finally {
 			this.tacker.data.timeInMs = moment().diff(startedAt, "milliseconds");
 			this.tacker.data.url = window.location.href;
