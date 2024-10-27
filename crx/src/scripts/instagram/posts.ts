@@ -212,17 +212,15 @@ class Posts {
 
 	private handleCarousel(media: I.CarouselMedia[]) {
 		const links: File[] = media.map((m) => {
-			const item = I.MediaTypes.IMAGE
-				? m.image_versions2.candidates[0]
-				: m.video_versions
-				? m.video_versions[0]
-				: m.image_versions2.candidates[0];
+			const item = m.media_type === I.MediaTypes.IMAGE ? m.image_versions2.candidates : m.video_versions;
+			if (!item || item.length == 0) throw new Error("No media found in carousel item");
+		
 			return {
-				url: item.url,
-				width: item.width,
-				height: item.height,
+				url: item[0].url,
+				width: item[0].width,
+				height: item[0].height,
 				id: m.id,
-				extension: I.MediaTypes.IMAGE ? "png" : "mp4",
+				extension:  m.media_type === I.MediaTypes.IMAGE ? "png" : "mp4",
 				fileName: m.id,
 			};
 		});
