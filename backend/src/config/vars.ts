@@ -22,6 +22,7 @@ const {value: envVars, error} = envVarsSchema
 		}
 	})
 	.validate(process.env);
+	console.log("🚀 ~ process.env:", process.env)
 if (error) {
 	throw new Error(`Config validation error: ${error.message}`);
 }
@@ -30,7 +31,7 @@ const config = {
 	env: envVars.NODE_ENV,
 	port: envVars.PORT,
 	mongoose: {
-		url: envVars.MONGODB_URL + `SocialStalker-${envVars.NODE_ENV}`
+		url: envVars.MONGODB_URL
 	},
 	jwt: {
 		secret: envVars.JWT_SECRET

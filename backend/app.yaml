@@ -1,0 +1,22 @@
+runtime: nodejs
+env: flex
+runtime_config:
+  operating_system: ubuntu22
+# This sample incurs costs to run on the App Engine flexible environment.
+# The settings below are to reduce costs during testing and are not appropriate
+# for production use. For more information, see:
+# https://cloud.google.com/appengine/docs/flexible/nodejs/configuring-your-app-with-app-yaml
+manual_scaling:
+  instances: 1
+resources:
+  cpu: 1
+  memory_gb: 0.5
+  disk_size_gb: 10
+
+env_variables:
+  MONGODB_URL: mongodb://localhost:27017/socialstalker
+  IP: "5b9b5c5ca0844a"
+  CLOUDINARY_URL: "cloudinary://412487398511892:pV79l4B6zFDf3X8cTg5UoUDr7qs@dlosfwyii"
+  EXTENSION_SECRET: "qGpZc833UfVRSpzFNUtkzpPhJEeNGksdZuHp0OVlBLXyxSZY"
+  SYNC_SECRET: "secretbrze99QgtJmOIGgCyAp4qIq9t0LF0fz-7Wo3-DJwDV7q4tUG"
+  REDIS_URL: redis://localhost:6379

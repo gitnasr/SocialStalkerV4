@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      MONGODB_URL: mongodb://localhost:27017/socialstalker
+      IP: 5b9b5c5ca0844a
+      CLOUDINARY_URL: cloudinary://412487398511892:pV79l4B6zFDf3X8cTg5UoUDr7qs@dlosfwyii
+      EXTENSION_SECRET: qGpZc833UfVRSpzFNUtkzpPhJEeNGksdZuHp0OVlBLXyxSZY
+      SYNC_SECRET: secretbrze99QgtJmOIGgCyAp4qIq9t0LF0fz-7Wo3-DJwDV7q4tUG
+      REDIS_URL: redis://localhost:6379
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - appnetwork
+  mongo:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - appnetwork
+
+  redis:
+    ports:
+      - "6379:6379"
+    image: redis:latest
+    restart: always
+    volumes:
+      - redis-data:/data
+    networks:
+      - appnetwork
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/socialstalker
+
+    depends_on:
+      - mongo
+
+  mongo-backup:
+    image: mongo:latest
+    restart: always
+    entrypoint: /bin/sh -c "while true; do sleep 86400; mongodump --host mongo --out /backup/mongo_backup_$(date +'%Y%m%d_%H%M%S'); tar -czf /backup/mongo_backup_$(date +'%Y%m%d_%H%M%S').tar.gz -C /backup mongo_backup_$(date +'%Y%m%d_%H%M%S'); done"
+    volumes:
+      - mongo-backup-data:/backup
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME= 
+      - MONGO_INITDB_ROOT_PASSWORD= 
+volumes:
+  mongo-data:
+  redis-data:
+  mongo-backup-data:
+
+networks:
+  appnetwork:
+    driver: bridge
